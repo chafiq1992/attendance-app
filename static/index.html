@@ -339,7 +339,8 @@
           ts:       new Date().toISOString()
         };
 
-        apiPost('/attendance', payload)
+        // Store data directly in the per-employee table
+        apiPost('/attendance/clock', payload)
           .then(r  => document.getElementById('msg').innerHTML = '✅ Saved!')
           .catch(e => document.getElementById('msg').innerHTML = '❌ ' + e.message);
       }
