@@ -135,7 +135,7 @@ def summary(employee:str=Query(...), month:str=Query(None)):
     return _update_summary(ws, employee, month)
 
 # ---------- Simplified attendance endpoint ----------
-@router.post("/")
+@router.post("")
 def record_attendance(ev: AttendanceEvent):
     tab_name = ev.employee.capitalize()
     try:
