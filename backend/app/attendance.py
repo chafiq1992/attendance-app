@@ -84,37 +84,11 @@ ATTENDANCE_SHEET_NAME = "Attendance"
 
 # ---------- Helpers ----------
 def _ws(emp: str):
+    """Return or create a minimal worksheet for the employee."""
     if emp in [s.title for s in ss.worksheets()]:
         return ss.worksheet(emp)
-    ws = ss.add_worksheet(title=emp, rows="1000", cols=str(len(HEADER)))
-    ws.append_row(HEADER)
-    ws.format(
-        "1:1",
-        {
-            "textFormat": {"bold": True},
-            "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9},
-            "borders": {
-                "bottom": {
-                    "style": "SOLID_THICK",
-                    "color": {"red": 0, "green": 0, "blue": 0},
-                }
-            },
-        },
-    )
-    ws.freeze(rows=2)
-    ws.insert_row([""] * len(HEADER), 2)  # summary row
-    ws.format(
-        "2:2",
-        {
-            "textFormat": {"bold": True},
-            "borders": {
-                "bottom": {
-                    "style": "SOLID_THICK",
-                    "color": {"red": 0.29, "green": 0.53, "blue": 0.91},
-                }
-            },
-        },
-    )
+    # No legacy log headers – the month grid will be created on demand
+    ws = ss.add_worksheet(title=emp, rows="1000", cols="33")
     return ws
 
 
@@ -182,17 +156,18 @@ def _ensure_month_grid(ws, emp: str, month: str) -> None:
     )
 
     # 3) labels in col A, rows 2-11
+    # First column labels – updated to match the UI table
     labels = [
-        "(Main-In)",
-        "(Main-Out)",
-        "(Duration)",
-        "(Work Outcome)",
-        "(Break-In)",
-        "(Break-Out)",
-        "(Break Outcome)",
-        "(Extra-In)",
-        "(Extra-Out)",
-        "(Extra Outcome)",
+        "Clock-In",
+        "Clock-Out",
+        "Main (h m)",
+        "Break-Start",
+        "Break-End",
+        "Break (min)",
+        "Extra-Start",
+        "Extra-End",
+        "Extra (min)",
+        "Outcome",
     ]
     ws.update("A2:A11", [[l] for l in labels])
 
@@ -247,36 +222,8 @@ def _record_into_grid(ws, action: str, ts: dt.datetime, start_row: int):
 
 
 def _find_or_create_employee_row(name: str, ws) -> int:
-    """Return the start row of the employee block, inserting if needed."""
-    names = ws.col_values(1)[1:]
-    if name in names:
-        return names.index(name) + 2
-
-    start_row = len(names) + 2
-    # insert 10 empty rows using distinct lists so gspread treats them
-    # as separate rows
-    ws.insert_rows([[] for _ in range(10)], start_row)
-    labels = [
-        name,
-        "(Out)",
-        "(Duration)",
-        "(Work Outcome)",
-        "(Break Start)",
-        "(Break End)",
-        "(Break Outcome)",
-        "(Extra Start)",
-        "(Extra End)",
-        "(Extra Outcome)",
-    ]
-    for i, label in enumerate(labels):
-        ws.update_cell(start_row + i, 1, label)
-    # ─── Σ formulas – written once ───────────────────────────
-    sum_col = 33  # column AG (after AF = 32)
-    # Work Outcome  → row start+3  • Break Outcome → start+6  • Extra Outcome → start+9
-    ws.update_cell(start_row + 3, sum_col, f"=SUM(B{start_row+3}:AF{start_row+3})")
-    ws.update_cell(start_row + 6, sum_col, f"=SUM(B{start_row+6}:AF{start_row+6})")
-    ws.update_cell(start_row + 9, sum_col, f"=SUM(B{start_row+9}:AF{start_row+9})")
-    return start_row
+    """Deprecated helper kept for compatibility. Always return row 2."""
+    return 2
 
 
 def _to_excel_time(ts: dt.datetime) -> float:
@@ -385,62 +332,32 @@ def record_attendance_table(emp: str, action: str, ts: dt.datetime) -> None:
 
 
 def _update_summary(ws, emp, month) -> Summary:
-    vals = ws.get_values("A3:J")
-    mins, days, clock_in, extra_in = 0, set(), None, None
-    for r in vals:
-        if not r or r[3] != month:
-            continue
-        ts = dt.datetime.fromisoformat(r[0]) if r[0] else None
-        act = r[1]
-        if act == "clockin":
-            clock_in = ts
-            days.add(r[2])
-        if act == "clockout" and clock_in:
-            mins += (ts - clock_in).total_seconds() / 60
-            clock_in = None
-        if act == "startextra":
-            extra_in = ts
-        if act == "endextra" and extra_in:
-            mins += (ts - extra_in).total_seconds() / 60
-            extra_in = None
-    hours = round(mins / 60, 2)
-    earned = WAGE_MAP.get(emp, 0) * len(days)
-    ws.batch_update(
-        [
-            {
-                "range": "A2:F2",
-                "values": [
-                    [
-                        f"📅 {month}",
-                        "",
-                        "Days: {len(days)}",
-                        "",
-                        "🕒 {hours} h",
-                        f"💵 {earned} DH",
-                    ]
-                ],
-            },
-            {
-                "range": "A2:F2",
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {"bold": True},
-                        "backgroundColor": {"red": 0.85, "green": 0.9, "blue": 1},
-                        "borders": {
-                            "bottom": {
-                                "style": "SOLID_THICK",
-                                "color": {"red": 0.29, "green": 0.53, "blue": 0.91},
-                            }
-                        },
-                    }
-                },
-            },
-        ],
-        fields="userEnteredFormat",
+    """Update and return the monthly summary based on the grid data."""
+    in_row, out_row = 2, 3
+    worked_days, total_hours = 0, 0.0
+    for col in range(2, 33):
+        incell = ws.cell(in_row, col, value_render_option="UNFORMATTED_VALUE").value
+        outcell = ws.cell(out_row, col, value_render_option="UNFORMATTED_VALUE").value
+        if isinstance(incell, (int, float)) and isinstance(outcell, (int, float)) and outcell > incell:
+            worked_days += 1
+            total_hours += (outcell - incell) * 24
+    hours = round(total_hours, 2)
+    earned = WAGE_MAP.get(emp, 0) * worked_days
+    ws.update(
+        "A2:F2",
+        [[f"📅 {month}", "", f"Days: {worked_days}", "", f"🕒 {hours} h", f"💵 {earned} DH"]],
     )
-    return Summary(
-        employee=emp, month=month, days=len(days), hours=hours, earned=earned
+    ws.format(
+        "2:2",
+        {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.85, "green": 0.9, "blue": 1},
+            "borders": {
+                "bottom": {"style": "SOLID_THICK", "color": {"red": 0.29, "green": 0.53, "blue": 0.91}}
+            },
+        },
     )
+    return Summary(employee=emp, month=month, days=worked_days, hours=hours, earned=earned)
 
 
 def _month_grid(ws, emp: str, month: str):
@@ -460,15 +377,13 @@ def clock(body: ClockBody):
         now = dt.datetime.now(tz)
         mon = now.strftime("%Y-%m")
         ws = _ws(body.employee)
-        _month_sep(ws, mon)
 
         def iso(t):
             return t.isoformat() if t else ""
 
         # NEW – keep the per-employee month grid in sync
         _ensure_month_grid(ws, body.employee, mon)
-        start_row = _find_or_create_employee_row(body.employee, ws)
-        _record_into_grid(ws, body.action, now, start_row)
+        _record_into_grid(ws, body.action, now, 2)
         return _update_summary(ws, body.employee, mon)
     except Exception:
         logging.exception("Failed to record attendance")
