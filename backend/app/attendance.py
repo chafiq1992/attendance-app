@@ -110,29 +110,72 @@ def _attendance_sheet():
 
 # ────────────────────────────────────────────────────────────────
 #  NEW – make sure the current-month grid is always at the top
+#      (inside each employee sheet)
 # ────────────────────────────────────────────────────────────────
-def _ensure_month_grid(ws: gspread.Worksheet, month: str) -> None:
-    """Ensure the top grid belongs to the given ``month`` (YYYY-MM)."""
-    first = ws.acell("A1").value or ""
+def _ensure_month_grid(ws, emp: str, month: str) -> None:
+    """Insert a brand-new grid at the top the first time we touch a month."""
+    if ws.acell("A1").value == month:
+        return
 
-    # We encode the month inside cell A1 (→ "Name 2025-06")
-    if month in first:
-        return  # already on the right month – nothing to do
+    # 1) push everything down (logs, previous months…)
+    ws.insert_rows([[] for _ in range(11)], 1)
 
-    # 1) push everything down and write a new header
-    header = [f"Name {month}"] + [str(d) for d in range(1, 32)] + ["Σ"]
-    ws.insert_row(header, 1)
-
-    # 2) restore the grey header format
+    # 2) write header row 1  (month, 1 … 31, Σ)
+    header = [month] + [str(d) for d in range(1, 32)] + ["Σ"]
+    ws.update("A1:AG1", [header])
     ws.format("1:1", {
         "textFormat": {"bold": True},
         "backgroundColor": {"red": .9, "green": .9, "blue": .9},
         "borders": {"bottom": {"style": "SOLID_THICK",
-                                   "color": {"red": 0, "green": 0, "blue": 0}}}
+                               "color": {"red": 0, "green": 0, "blue": 0}}}
     })
 
-    # 3) keep the first two rows frozen (header + first employee row)
+    # 3) labels in col A, rows 2-11
+    labels = [
+        emp, "(Out)", "(Duration)", "(Work Outcome)",
+        "(Break Start)", "(Break End)", "(Break Outcome)",
+        "(Extra Start)", "(Extra End)", "(Extra Outcome)"
+    ]
+    ws.update("A2:A11", [[l] for l in labels])
+
+    # 4) Σ-formulas in the new grid
+    for r in (4, 7, 10):
+        ws.update_cell(r, 33, f"=SUM(B{r}:AF{r})")
+
+    # 5) keep header + labels frozen
     ws.freeze(rows=2)
+
+
+def _record_into_grid(ws, action: str, ts: dt.datetime) -> None:
+    """Write a single hh:mm:ss value into the proper cell of the grid."""
+    col = ts.day + 1                    # 1-based; B=2, …, 31→AF=32
+    row_map = {
+        "clockin":     2,
+        "clockout":    3,
+        "startbreak":  6,
+        "endbreak":    7,
+        "startextra":  9,
+        "endextra":   10,
+    }
+    if action not in row_map:
+        return
+    row  = row_map[action]
+    # convert row/col to A1 notation (e.g. B2)
+    def _a1(r: int, c: int) -> str:
+        label = ""
+        while c:
+            c, rem = divmod(c - 1, 26)
+            label = chr(65 + rem) + label
+        return f"{label}{r}"
+
+    cell = _a1(row, col)
+
+    # numeric time value (incl. seconds) so formulas keep working
+    value = ts.hour/24 + ts.minute/1440 + ts.second/86400
+    ws.update(cell, value)
+
+    # format that one cell as hh:mm:ss so you never see 0.89 again
+    ws.format(cell, {"numberFormat": {"type": "TIME", "pattern": "hh:mm:ss"}})
 
 
 def _find_or_create_employee_row(name: str, ws) -> int:
@@ -169,7 +212,7 @@ def _find_or_create_employee_row(name: str, ws) -> int:
 
 
 def _to_excel_time(ts: dt.datetime) -> float:
-    return ts.hour / 24 + ts.minute / 1440
+    return ts.hour / 24 + ts.minute / 1440 + ts.second / 86400
 
 
 def _to_minutes(val) -> Optional[int]:
@@ -229,7 +272,7 @@ def record_attendance_table(emp: str, action: str, ts: dt.datetime) -> None:
 
     # NEW ➜ drop a fresh grid at the top whenever the month changes
     current_mon = ts.strftime("%Y-%m")          # e.g. "2025-06"
-    _ensure_month_grid(ws, current_mon)
+    _ensure_month_grid(ws, emp, current_mon)
 
     column      = ts.day + 1                    # 1 → col B, 31 → col AF
     start = _find_or_create_employee_row(emp, ws)
@@ -299,16 +342,13 @@ def _update_summary(ws, emp, month)->Summary:
     }], fields="userEnteredFormat")
     return Summary(employee=emp,month=month,days=len(days),hours=hours,earned=earned)
 
-def _month_grid(ws, emp:str, month:str):
-    """Return the 10-row legacy grid (list[list]) for *emp* in *month*."""
-    start = _find_or_create_employee_row(emp, ws)
-    # A =1 … AG =33   →  "A:AG"
-    raw   = ws.get_values(f"A{start}:AG{start+9}")
-    # first row holds the employee name – overwrite it with plain 'Label'
-    raw[0][0] = "Label"
-    # show month in header (useful in UI table)
-    header = [f"{month}"] + [str(i) for i in range(1,32)] + ["Σ"]
-    return {"header": header, "rows": raw}
+def _month_grid(ws, emp: str, month: str):
+    """Return the 10-row month grid from the employee worksheet."""
+    _ensure_month_grid(ws, emp, month)
+    data = ws.get_values("A1:AG11")
+    header = data[0]
+    rows = data[1:]
+    return {"header": header, "rows": rows}
 
 # ---------- Routes ----------
 @router.post("/clock", response_model=Summary)
@@ -331,8 +371,9 @@ def clock(body: ClockBody):
             iso(now) if body.action=="startextra" else "",
             iso(now) if body.action=="endextra"   else ""
         ])
-        # also store data in the legacy day‑oriented table
-        record_attendance_table(body.employee, body.action, now)
+        # NEW – keep the per-employee month grid in sync
+        _ensure_month_grid(ws, body.employee, mon)
+        _record_into_grid(ws, body.action, now)
         return _update_summary(ws, body.employee, mon)
     except Exception:
         logging.exception("Failed to record attendance")
@@ -346,11 +387,11 @@ def summary(employee:str=Query(...), month:str=Query(None)):
     return _update_summary(ws, employee, month)
 
 @router.get("/month-grid")
-def month_grid(employee:str=Query(...), month:str=Query(None)):
-    """Return the legacy 10-row × 33-col table for the given month."""
+def month_grid(employee: str = Query(...), month: str = Query(None)):
+    """Return the month grid stored in the employee tab."""
     if month is None:
         month = dt.datetime.now().strftime("%Y-%m")
-    ws = _attendance_sheet()
+    ws = _ws(employee)
     return _month_grid(ws, employee, month)
 
 # ---------- Simplified attendance endpoint ----------
