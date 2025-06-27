@@ -28,6 +28,12 @@ if not spreadsheet_id:
 
 ss = gc.open_by_key(spreadsheet_id)
 
+# ---------- Model for simple attendance endpoint ----------
+class AttendanceEvent(BaseModel):
+    employee: str
+    action: str     # "clockin", "clockout", "startbreak", …
+    ts: dt.datetime
+
 # ---------- Wage map ----------
 # Example env var:
 #   EMPLOYEE_WAGES_JSON='{"Alice":80,"Bob":75,"Nora":90}'
@@ -127,3 +133,21 @@ def summary(employee:str=Query(...), month:str=Query(None)):
         month = dt.datetime.now().strftime("%Y-%m")
     ws = _ws(employee)
     return _update_summary(ws, employee, month)
+
+# ---------- Simplified attendance endpoint ----------
+@router.post("/")
+def record_attendance(ev: AttendanceEvent):
+    tab_name = ev.employee.capitalize()
+    try:
+        try:
+            ws = ss.worksheet(tab_name)
+        except gspread.WorksheetNotFound:
+            ws = ss.add_worksheet(tab_name, rows=1000, cols=10)
+
+        tz = pytz.timezone("Europe/Lisbon")  # adjust!
+        local_ts = ev.ts.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
+
+        ws.append_row([local_ts, ev.action])
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

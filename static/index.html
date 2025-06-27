@@ -148,8 +148,28 @@
     </div>
 
     <script>
-      // The employee name is injected by Apps Script server-side templating
-      var employeeName = '<?= employee ?>';
+      /* ------------------------------------------
+         0.  Get the employee from ?employee=… or localStorage
+      -------------------------------------------*/
+      const urlParams    = new URLSearchParams(location.search);
+      let employeeName   = urlParams.get('employee') || localStorage.getItem('employee_name') || '';
+
+      if (!employeeName) {
+        alert('No employee supplied in the URL, e.g.  ?employee=hind');
+      } else {
+        localStorage.setItem('employee_name', employeeName);
+        document.getElementById('employeeName').innerText = employeeName;
+      }
+
+      /* ------------------------------------------
+         1.  Tiny helper that hits the same host that served the page
+      -------------------------------------------*/
+      const API     = location.origin.replace(/\/$/, '');
+      const headers = { 'Content-Type': 'application/json' };
+      const apiPost = (p, body={}) =>
+            fetch(`${API}${p}`, {method:'POST', headers, body:JSON.stringify(body)})
+              .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t); }));
+
       let breakStartTime = null, extraStartTime = null, mainStartTime = null;
       let pendingAction = null;
 
@@ -209,12 +229,10 @@
 
       window.onload = function() {
         if (!employeeName) {
-          document.getElementById("employeeName").innerText = "⛔ No name found!";
-          Array.from(document.querySelectorAll("button")).forEach(btn => btn.disabled = true);
-          document.getElementById("msg").innerText += "\nAccess denied: This link requires your personal employee link.";
+          document.getElementById('employeeName').innerText = '⛔ No employee!';
+          Array.from(document.querySelectorAll('button')).forEach(btn => btn.disabled = true);
           return;
         }
-        document.getElementById("employeeName").innerText = "👤 " + employeeName;
         startClock();
         renderDayLog();
       };
@@ -285,8 +303,6 @@
         }
 
         const now = new Date();
-        const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const day = now.getDate();
 
         // --- Log the action and update open periods ---
         if (action === 'clockin') {
@@ -317,9 +333,15 @@
 
         renderDayLog();
 
-        google.script.run.withSuccessHandler(function(response) {
-          document.getElementById("msg").innerText = response.message;
-        }).recordAttendance(employeeName, action, day);
+        const payload = {
+          employee: employeeName,
+          action:   action,
+          ts:       new Date().toISOString()
+        };
+
+        apiPost('/attendance', payload)
+          .then(r  => document.getElementById('msg').innerHTML = '✅ Saved!')
+          .catch(e => document.getElementById('msg').innerHTML = '❌ ' + e.message);
       }
 
       // Helper to render log sections with running total
