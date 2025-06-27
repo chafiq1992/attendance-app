@@ -22,6 +22,7 @@ fake_ws.append_row = MagicMock()
 fake_ws.freeze = MagicMock()
 fake_ws.insert_row = MagicMock()
 fake_ws.update_cell = MagicMock()
+fake_ws.update = MagicMock()
 fake_ws.col_count = 0
 fake_ws.add_cols = MagicMock()
 fake_ws.acell = MagicMock(return_value=MagicMock(value=""))
@@ -78,11 +79,11 @@ def test_empty_month_rows_do_not_error():
 
 
 def test_clock_failing_returns_friendly_error():
-    fake_ws.append_row.side_effect = Exception("gs fail")
+    fake_ws.update.side_effect = Exception("gs fail")
     resp = client.post('/attendance/clock', json={
         'employee': 'Alice',
         'action': 'clockin'
     })
     assert resp.status_code == 500
     assert resp.json() == {'detail': 'Failed to record attendance'}
-    fake_ws.append_row.side_effect = None
+    fake_ws.update.side_effect = None
