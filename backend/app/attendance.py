@@ -100,11 +100,12 @@ def _attendance_sheet():
     try:
         ws = ss.worksheet(ATTENDANCE_SHEET_NAME)
     except gspread.WorksheetNotFound:
-        ws = ss.add_worksheet(ATTENDANCE_SHEET_NAME, rows="1000", cols="32")
-        ws.append_row(["Name"] + [str(i) for i in range(1, 32)])
+        ws = ss.add_worksheet(ATTENDANCE_SHEET_NAME, rows="1000", cols="33")
+        # NEW – 31 days + Σ
+        ws.append_row(["Name"] + [str(i) for i in range(1, 32)] + ["Σ"])
     # ensure enough columns for all days
-    if ws.col_count < 32:
-        ws.add_cols(32 - ws.col_count)
+    if ws.col_count < 33:                       # 32 (day cols) + 1 Σ
+        ws.add_cols(33 - ws.col_count)
     return ws
 
 # ────────────────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ def _ensure_month_grid(ws: gspread.Worksheet, month: str) -> None:
         return  # already on the right month – nothing to do
 
     # 1) push everything down and write a new header
-    header = [f"Name {month}"] + [str(d) for d in range(1, 32)]
+    header = [f"Name {month}"] + [str(d) for d in range(1, 32)] + ["Σ"]
     ws.insert_row(header, 1)
 
     # 2) restore the grey header format
@@ -158,6 +159,12 @@ def _find_or_create_employee_row(name: str, ws) -> int:
     ]
     for i, label in enumerate(labels):
         ws.update_cell(start_row + i, 1, label)
+    # ─── Σ formulas – written once ───────────────────────────
+    sum_col = 33        # column AG (after AF = 32)
+    # Work Outcome  → row start+3  • Break Outcome → start+6  • Extra Outcome → start+9
+    ws.update_cell(start_row + 3, sum_col,  f"=SUM(B{start_row+3}:AF{start_row+3})")
+    ws.update_cell(start_row + 6, sum_col,  f"=SUM(B{start_row+6}:AF{start_row+6})")
+    ws.update_cell(start_row + 9, sum_col,  f"=SUM(B{start_row+9}:AF{start_row+9})")
     return start_row
 
 
@@ -292,6 +299,17 @@ def _update_summary(ws, emp, month)->Summary:
     }], fields="userEnteredFormat")
     return Summary(employee=emp,month=month,days=len(days),hours=hours,earned=earned)
 
+def _month_grid(ws, emp:str, month:str):
+    """Return the 10-row legacy grid (list[list]) for *emp* in *month*."""
+    start = _find_or_create_employee_row(emp, ws)
+    # A =1 … AG =33   →  "A:AG"
+    raw   = ws.get_values(f"A{start}:AG{start+9}")
+    # first row holds the employee name – overwrite it with plain 'Label'
+    raw[0][0] = "Label"
+    # show month in header (useful in UI table)
+    header = [f"{month}"] + [str(i) for i in range(1,32)] + ["Σ"]
+    return {"header": header, "rows": raw}
+
 # ---------- Routes ----------
 @router.post("/clock", response_model=Summary)
 def clock(body: ClockBody):
@@ -326,6 +344,14 @@ def summary(employee:str=Query(...), month:str=Query(None)):
         month = dt.datetime.now().strftime("%Y-%m")
     ws = _ws(employee)
     return _update_summary(ws, employee, month)
+
+@router.get("/month-grid")
+def month_grid(employee:str=Query(...), month:str=Query(None)):
+    """Return the legacy 10-row × 33-col table for the given month."""
+    if month is None:
+        month = dt.datetime.now().strftime("%Y-%m")
+    ws = _attendance_sheet()
+    return _month_grid(ws, employee, month)
 
 # ---------- Simplified attendance endpoint ----------
 @router.post("")

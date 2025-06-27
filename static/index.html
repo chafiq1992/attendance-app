@@ -109,12 +109,26 @@
         border-radius: 8px;
         cursor: pointer;
       }
+      #tabs { margin-bottom: 12px; }
+      #tabs button {
+        border:none; padding:10px 18px; font-size:17px; cursor:pointer;
+        border-radius:8px 8px 0 0; background:#ddd;
+      }
+      #tabs button.active { background:#007BFF; color:#fff; }
+      #monthTable table { border-collapse:collapse; font-size:14px; }
+      #monthTable th, #monthTable td { border:1px solid #ccc; padding:4px 6px; text-align:center; }
+      #monthTable th { background:#f0f0f0; }
     </style>
   </head>
   <body>
     <img id="logo" src="https://cdn.shopify.com/s/files/1/0573/6726/5337/files/0df2.png?v=1697554869" alt="Company Logo">
     <h2>🕒 Employee Attendance</h2>
     <h3 id="employeeName"></h3>
+    <div id="tabs">
+      <button id="tabDaily"  class="active">🕑 Today</button>
+      <button id="tabMonth">📈 Month Summary</button>
+    </div>
+    <div id="dailyView">
     <div id="status">Status: Not Clocked In</div>
     <div id="datetime"></div>
     <!-- Main actions -->
@@ -145,6 +159,12 @@
         <div class="modal-time" id="modalTime"></div>
         <button onclick="confirmAction()">OK</button>
       </div>
+    </div>
+    </div>
+    <div id="monthView" style="display:none">
+      <h3>📈 This Month</h3>
+      <div id="monthSummary">Loading…</div>
+      <div id="monthTable" style="overflow-x:auto"></div>
     </div>
 
     <script>
@@ -406,6 +426,49 @@
         let h = Math.floor(mins / 60);
         let m = mins % 60;
         return (h ? `${h}h ` : '') + (m ? `${m}min` : (h ? '' : '0 min'));
+      }
+
+      // —— TAB logic ———————————————————————————
+      document.getElementById('tabDaily').onclick  = () => switchTab('daily');
+      document.getElementById('tabMonth').onclick  = () => switchTab('month');
+
+      function switchTab(which){
+        document.getElementById('tabDaily').classList.toggle('active', which==='daily');
+        document.getElementById('tabMonth').classList.toggle('active', which==='month');
+        document.getElementById('dailyView').style.display  = which==='daily' ? 'block':'none';
+        document.getElementById('monthView').style.display  = which==='month' ? 'block':'none';
+        if (which==='month') loadMonthData();
+      }
+
+      // —— load month summary + table ———————————
+      function loadMonthData(){
+        // 1) Summary (days, hours, DH)
+        fetch(`${API}/attendance/summary?employee=${employeeName}`)
+          .then(r => r.json())
+          .then(s => {
+            document.getElementById('monthSummary').innerHTML =
+              `<strong>${s.month}</strong> – Days <b>${s.days}</b> • Hours <b>${s.hours}</b> • Earned <b>${s.earned} DH</b>`;
+          })
+          .catch(e => document.getElementById('monthSummary').innerText = '❌ '+e);
+
+        // 2) Full grid
+        fetch(`${API}/attendance/month-grid?employee=${employeeName}`)
+          .then(r => r.json())
+          .then(drawMonthTable)
+          .catch(e => document.getElementById('monthTable').innerText = '❌ '+e);
+      }
+
+      function drawMonthTable(data){
+        let html = '<table><thead><tr>';
+        data.header.forEach(h => html += `<th>${h}</th>`);
+        html += '</tr></thead><tbody>';
+        data.rows.forEach(r => {
+          html += '<tr>';
+          r.forEach(c => html += `<td>${c||''}</td>`);
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        document.getElementById('monthTable').innerHTML = html;
       }
     </script>
   </body>
