@@ -1,6 +1,7 @@
 # ────────────────────────────────────────────────────────────────
 #  Attendance API – One sheet tab per employee, live month summary
 # ----------------------------------------------------------------
+import json, os, base64 
 import os, json, datetime as dt
 from typing import List, Optional, Dict
 import gspread, pytz
