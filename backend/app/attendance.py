@@ -61,6 +61,9 @@ HEADER = [
     "Extra-In","Extra-Out"
 ]
 
+# ----- Legacy table style sheet -----
+ATTENDANCE_SHEET_NAME = "Attendance"
+
 # ---------- Helpers ----------
 def _ws(emp:str):
     if emp in [s.title for s in ss.worksheets()]:
@@ -77,6 +80,102 @@ def _month_sep(ws, month):
     last   = next((m for m in reversed(months) if m), "")
     if last != month:
         ws.insert_rows(row=3, number=2)
+
+# ----- Legacy attendance table helpers ---------------------------
+def _attendance_sheet():
+    """Return the legacy sheet used for simple clock in/out table."""
+    try:
+        return ss.worksheet(ATTENDANCE_SHEET_NAME)
+    except gspread.WorksheetNotFound:
+        ws = ss.add_worksheet(ATTENDANCE_SHEET_NAME, rows="1000", cols="32")
+        header = ["Name"] + [str(i) for i in range(1, 32)]
+        ws.append_row(header)
+        return ws
+
+
+def _find_or_create_employee_row(name: str, ws) -> int:
+    """Return the start row of the employee block, inserting if needed."""
+    names = ws.col_values(1)[1:]
+    if name in names:
+        return names.index(name) + 2
+
+    start_row = len(names) + 2
+    ws.insert_rows([[]] * 10, start_row)
+    labels = [
+        name,
+        "(Out)",
+        "(Duration)",
+        "(Work Outcome)",
+        "(Break Start)",
+        "(Break End)",
+        "(Break Outcome)",
+        "(Extra Start)",
+        "(Extra End)",
+        "(Extra Outcome)",
+    ]
+    for i, label in enumerate(labels):
+        ws.update_cell(start_row + i, 1, label)
+    return start_row
+
+
+def _to_excel_time(ts: dt.datetime) -> float:
+    return ts.hour / 24 + ts.minute / 1440
+
+
+def _to_minutes(val) -> Optional[int]:
+    if val in ("", None):
+        return None
+    if isinstance(val, (int, float)):
+        return int(val) if val > 1 else int(val * 24 * 60)
+    if isinstance(val, dt.datetime):
+        return val.hour * 60 + val.minute
+    if isinstance(val, str):
+        if ":" in val:
+            try:
+                h, m = [int(x) for x in val.split(":")]
+                return h * 60 + m
+            except ValueError:
+                return None
+        try:
+            f = float(val)
+            return int(f) if f > 1 else int(f * 24 * 60)
+        except ValueError:
+            return None
+    return None
+
+
+def _duration_between(start, end, fmt="min") -> str:
+    s = _to_minutes(start)
+    e = _to_minutes(end)
+    if s is None or e is None or e <= s:
+        return ""
+    d = e - s
+    if fmt == "min":
+        return f"{d} min"
+    return f"{d//60}h {d%60}m"
+
+
+def record_attendance_table(emp: str, action: str, ts: dt.datetime) -> None:
+    ws = _attendance_sheet()
+    column = ts.day + 1
+    start = _find_or_create_employee_row(emp, ws)
+    rows = {
+        "clockin": start,
+        "clockout": start + 1,
+        "startbreak": start + 4,
+        "endbreak": start + 5,
+        "startextra": start + 7,
+        "endextra": start + 8,
+    }
+    if action in rows:
+        ws.update_cell(rows[action], column, _to_excel_time(ts))
+    # update break/extra outcomes
+    ws.update_cell(start + 9, column,
+                   _duration_between(ws.cell(start + 7, column).value,
+                                     ws.cell(start + 8, column).value, "h m"))
+    ws.update_cell(start + 6, column,
+                   _duration_between(ws.cell(start + 4, column).value,
+                                     ws.cell(start + 5, column).value, "min"))
 
 def _update_summary(ws, emp, month)->Summary:
     vals = ws.get_values("A3:J")
@@ -145,9 +244,13 @@ def record_attendance(ev: AttendanceEvent):
             ws = ss.add_worksheet(tab_name, rows=1000, cols=10)
 
         tz = pytz.timezone("Europe/Lisbon")  # adjust!
-        local_ts = ev.ts.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
+        local_dt = ev.ts.astimezone(tz)
 
-        ws.append_row([local_ts, ev.action])
+        ws.append_row([local_dt.strftime("%Y-%m-%d %H:%M:%S"), ev.action])
+
+        # also store in legacy table-style sheet
+        record_attendance_table(ev.employee, ev.action, local_dt)
+
         return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
