@@ -70,9 +70,17 @@ def _ws(emp:str):
         return ss.worksheet(emp)
     ws = ss.add_worksheet(title=emp, rows="1000", cols=str(len(HEADER)))
     ws.append_row(HEADER)
-    ws.format("1:1", {"textFormat":{"bold":True}, "backgroundColor":{"red":.9,"green":.9,"blue":.9}})
+    ws.format("1:1", {
+        "textFormat": {"bold": True},
+        "backgroundColor": {"red": .9, "green": .9, "blue": .9},
+        "borders": {"bottom": {"style": "SOLID_THICK", "color": {"red": 0, "green": 0, "blue": 0}}}
+    })
     ws.freeze(rows=2)
     ws.insert_row([""]*len(HEADER), 2)   # summary row
+    ws.format("2:2", {
+        "textFormat": {"bold": True},
+        "borders": {"bottom": {"style": "SOLID_THICK", "color": {"red": 0.29, "green": 0.53, "blue": 0.91}}}
+    })
     return ws
 
 def _month_sep(ws, month):
@@ -80,17 +88,22 @@ def _month_sep(ws, month):
     last   = next((m for m in reversed(months) if m), "")
     if last != month:
         ws.insert_rows(row=3, number=2)
+        ws.format("3:3", {
+            "borders": {"top": {"style": "SOLID_THICK", "color": {"red": 0, "green": 0, "blue": 0}}}
+        })
 
 # ----- Legacy attendance table helpers ---------------------------
 def _attendance_sheet():
     """Return the legacy sheet used for simple clock in/out table."""
     try:
-        return ss.worksheet(ATTENDANCE_SHEET_NAME)
+        ws = ss.worksheet(ATTENDANCE_SHEET_NAME)
     except gspread.WorksheetNotFound:
         ws = ss.add_worksheet(ATTENDANCE_SHEET_NAME, rows="1000", cols="32")
-        header = ["Name"] + [str(i) for i in range(1, 32)]
-        ws.append_row(header)
-        return ws
+        ws.append_row(["Name"] + [str(i) for i in range(1, 32)])
+    # ensure enough columns for all days
+    if ws.col_count < 32:
+        ws.add_cols(32 - ws.col_count)
+    return ws
 
 
 def _find_or_create_employee_row(name: str, ws) -> int:
@@ -290,8 +303,7 @@ def record_attendance(ev: AttendanceEvent):
 
         ws.append_row([local_dt.strftime("%Y-%m-%d %H:%M:%S"), ev.action])
 
-        # also store in legacy table-style sheet
-        record_attendance_table(ev.employee, ev.action, local_dt)
+        # legacy attendance table is no longer used
 
         return {"ok": True}
     except Exception as e:
