@@ -107,6 +107,32 @@ def _attendance_sheet():
         ws.add_cols(32 - ws.col_count)
     return ws
 
+# ────────────────────────────────────────────────────────────────
+#  NEW – make sure the current-month grid is always at the top
+# ────────────────────────────────────────────────────────────────
+def _ensure_month_grid(ws: gspread.Worksheet, month: str) -> None:
+    """Ensure the top grid belongs to the given ``month`` (YYYY-MM)."""
+    first = ws.acell("A1").value or ""
+
+    # We encode the month inside cell A1 (→ "Name 2025-06")
+    if month in first:
+        return  # already on the right month – nothing to do
+
+    # 1) push everything down and write a new header
+    header = [f"Name {month}"] + [str(d) for d in range(1, 32)]
+    ws.insert_row(header, 1)
+
+    # 2) restore the grey header format
+    ws.format("1:1", {
+        "textFormat": {"bold": True},
+        "backgroundColor": {"red": .9, "green": .9, "blue": .9},
+        "borders": {"bottom": {"style": "SOLID_THICK",
+                                   "color": {"red": 0, "green": 0, "blue": 0}}}
+    })
+
+    # 3) keep the first two rows frozen (header + first employee row)
+    ws.freeze(rows=2)
+
 
 def _find_or_create_employee_row(name: str, ws) -> int:
     """Return the start row of the employee block, inserting if needed."""
@@ -192,8 +218,13 @@ def _main_duration(clock_in, clock_out, break_start, break_end, fmt="h m") -> st
 
 
 def record_attendance_table(emp: str, action: str, ts: dt.datetime) -> None:
-    ws = _attendance_sheet()
-    column = ts.day + 1
+    ws          = _attendance_sheet()
+
+    # NEW ➜ drop a fresh grid at the top whenever the month changes
+    current_mon = ts.strftime("%Y-%m")          # e.g. "2025-06"
+    _ensure_month_grid(ws, current_mon)
+
+    column      = ts.day + 1                    # 1 → col B, 31 → col AF
     start = _find_or_create_employee_row(emp, ws)
     rows = {
         "clockin": start,
