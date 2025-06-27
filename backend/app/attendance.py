@@ -85,11 +85,11 @@ ATTENDANCE_SHEET_NAME = "Attendance"
 # ---------- Helpers ----------
 def _ws(emp: str):
     """Return or create a minimal worksheet for the employee."""
-    if emp in [s.title for s in ss.worksheets()]:
+    try:
         return ss.worksheet(emp)
-    # No legacy log headers – the month grid will be created on demand
-    ws = ss.add_worksheet(title=emp, rows="1000", cols="33")
-    return ws
+    except gspread.WorksheetNotFound:
+        # No legacy log headers – the month grid will be created on demand
+        return ss.add_worksheet(title=emp, rows="1000", cols="33")
 
 
 def _month_sep(ws, month):
