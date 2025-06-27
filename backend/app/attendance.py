@@ -96,12 +96,14 @@ def _month_sep(ws, month):
 def _attendance_sheet():
     """Return the legacy sheet used for simple clock in/out table."""
     try:
-        return ss.worksheet(ATTENDANCE_SHEET_NAME)
+        ws = ss.worksheet(ATTENDANCE_SHEET_NAME)
     except gspread.WorksheetNotFound:
         ws = ss.add_worksheet(ATTENDANCE_SHEET_NAME, rows="1000", cols="32")
-        header = ["Name"] + [str(i) for i in range(1, 32)]
-        ws.append_row(header)
-        return ws
+        ws.append_row(["Name"] + [str(i) for i in range(1, 32)])
+    # ensure enough columns for all days
+    if ws.col_count < 32:
+        ws.add_cols(32 - ws.col_count)
+    return ws
 
 
 def _find_or_create_employee_row(name: str, ws) -> int:
