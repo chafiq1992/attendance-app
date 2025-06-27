@@ -87,7 +87,7 @@ def _month_sep(ws, month):
     months = [m[0] for m in ws.get_values("D3:D")]
     last   = next((m for m in reversed(months) if m), "")
     if last != month:
-        ws.insert_rows(row=3, number=2)
+        ws.insert_rows([[], []], row=3)
         ws.format("3:3", {
             "borders": {"top": {"style": "SOLID_THICK", "color": {"red": 0, "green": 0, "blue": 0}}}
         })
