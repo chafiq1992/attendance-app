@@ -100,7 +100,9 @@ def _find_or_create_employee_row(name: str, ws) -> int:
         return names.index(name) + 2
 
     start_row = len(names) + 2
-    ws.insert_rows([[]] * 10, start_row)
+    # insert 10 empty rows using distinct lists so gspread treats them
+    # as separate rows
+    ws.insert_rows([[] for _ in range(10)], start_row)
     labels = [
         name,
         "(Out)",
