@@ -24,10 +24,12 @@ fake_ws.insert_row = MagicMock()
 fake_ws.update_cell = MagicMock()
 fake_ws.col_count = 0
 fake_ws.add_cols = MagicMock()
+fake_ws.acell = MagicMock(return_value=MagicMock(value=""))
 
 fake_ss = MagicMock()
 fake_ss.worksheets.return_value = []
 fake_ss.add_worksheet.return_value = fake_ws
+fake_ss.worksheet.side_effect = fake_gspread.WorksheetNotFound
 fake_gc = MagicMock()
 fake_gc.open_by_key.return_value = fake_ss
 fake_gspread.authorize = MagicMock(return_value=fake_gc)
