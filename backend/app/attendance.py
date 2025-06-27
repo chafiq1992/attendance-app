@@ -155,6 +155,25 @@ def _duration_between(start, end, fmt="min") -> str:
     return f"{d//60}h {d%60}m"
 
 
+def _main_duration(clock_in, clock_out, break_start, break_end, fmt="h m") -> str:
+    """Return total minutes between clock in and out minus breaks."""
+    s = _to_minutes(clock_in)
+    e = _to_minutes(clock_out)
+    if s is None or e is None or e <= s:
+        return ""
+    bs = _to_minutes(break_start)
+    be = _to_minutes(break_end)
+    break_min = 0
+    if bs is not None and be is not None and be > bs:
+        break_min = be - bs
+    d = e - s - break_min
+    if d <= 0:
+        return ""
+    if fmt == "min":
+        return f"{d} min"
+    return f"{d//60}h {d%60}m"
+
+
 def record_attendance_table(emp: str, action: str, ts: dt.datetime) -> None:
     ws = _attendance_sheet()
     column = ts.day + 1
@@ -169,13 +188,34 @@ def record_attendance_table(emp: str, action: str, ts: dt.datetime) -> None:
     }
     if action in rows:
         ws.update_cell(rows[action], column, _to_excel_time(ts))
-    # update break/extra outcomes
-    ws.update_cell(start + 9, column,
-                   _duration_between(ws.cell(start + 7, column).value,
-                                     ws.cell(start + 8, column).value, "h m"))
-    ws.update_cell(start + 6, column,
-                   _duration_between(ws.cell(start + 4, column).value,
-                                     ws.cell(start + 5, column).value, "min"))
+    # update main/break/extra outcomes
+    main_dur = _main_duration(
+        ws.cell(start, column).value,
+        ws.cell(start + 1, column).value,
+        ws.cell(start + 4, column).value,
+        ws.cell(start + 5, column).value,
+        "h m",
+    )
+    ws.update_cell(start + 2, column, main_dur)
+    ws.update_cell(start + 3, column, main_dur)
+    ws.update_cell(
+        start + 9,
+        column,
+        _duration_between(
+            ws.cell(start + 7, column).value,
+            ws.cell(start + 8, column).value,
+            "h m",
+        ),
+    )
+    ws.update_cell(
+        start + 6,
+        column,
+        _duration_between(
+            ws.cell(start + 4, column).value,
+            ws.cell(start + 5, column).value,
+            "min",
+        ),
+    )
 
 def _update_summary(ws, emp, month)->Summary:
     vals = ws.get_values("A3:J")
