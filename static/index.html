@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f7f9fc;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 100vh;
+      }
+      img#logo {
+        width: 120px;
+        margin: 20px 0 10px 0;
+      }
+      h2 {
+        margin: 5px 0 15px 0;
+      }
+      #employeeName {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      #status {
+        color: #007BFF;
+        font-size: 20px;
+        margin-bottom: 10px;
+      }
+      #datetime {
+        color: #555;
+        font-size: 18px;
+        margin-bottom: 20px;
+      }
+      .section {
+        width: 90%;
+        max-width: 500px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-gap: 20px;
+        margin-bottom: 30px;
+      }
+      .section button {
+        padding: 40px;
+        font-size: 24px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        width: 100%;
+        height: 120px;
+      }
+      .clockin { background-color: #4CAF50; color: white; }
+      .clockout { background-color: #f44336; color: white; }
+      .startbreak { background-color: #ff9800; color: white; }
+      .endbreak { background-color: #2196f3; color: white; }
+      .startextra { background-color: #673ab7; color: white; }
+      .endextra { background-color: #9c27b0; color: white; }
+      #msg {
+        margin-top: 30px;
+        font-size: 18px;
+        text-align: center;
+        min-height: 30px;
+      }
+      #day-log {
+        margin: 20px 0 0 0;
+        width: 90%;
+        max-width: 500px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px #0001;
+        padding: 20px 16px 10px 16px;
+        font-size: 17px;
+      }
+      .log-section { margin-bottom: 12px; }
+      .log-title { font-weight: bold; margin-bottom: 2px; color: #444; }
+      .log-entry { margin-left: 14px; }
+      .log-total { color: #007BFF; margin-top: 4px; font-size: 15px; margin-left: 12px; }
+      /* Modal styles */
+      #modalConfirm {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0; top: 0;
+        width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.32);
+        align-items: center; justify-content: center;
+      }
+      #modalConfirm .modal-content {
+        background: #fff;
+        border-radius: 12px;
+        padding: 30px 22px 16px 22px;
+        box-shadow: 0 4px 24px #0002;
+        text-align: center;
+        max-width: 350px;
+        margin: auto;
+      }
+      #modalConfirm p { font-size: 20px; margin: 0 0 18px 0; }
+      #modalConfirm .modal-time { font-size: 17px; color: #007BFF; margin-bottom: 18px; }
+      #modalConfirm button {
+        background: #4CAF50;
+        color: #fff;
+        border: none;
+        font-size: 19px;
+        padding: 10px 28px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <img id="logo" src="https://cdn.shopify.com/s/files/1/0573/6726/5337/files/0df2.png?v=1697554869" alt="Company Logo">
+    <h2>🕒 Employee Attendance</h2>
+    <h3 id="employeeName"></h3>
+    <div id="status">Status: Not Clocked In</div>
+    <div id="datetime"></div>
+    <!-- Main actions -->
+    <div class="section">
+      <button class="clockin" onclick="showModal('clockin')">✅ Clock In</button>
+      <button class="clockout" onclick="showModal('clockout')">🕔 Clock Out</button>
+    </div>
+    <div class="section">
+      <button class="startbreak" onclick="showModal('startbreak')">🛑 Start Break</button>
+      <button class="endbreak" onclick="showModal('endbreak')">✅ End Break</button>
+    </div>
+    <div class="section">
+      <button class="startextra" onclick="showModal('startextra')">➕ Start Extra Hours</button>
+      <button class="endextra" onclick="showModal('endextra')">🛑 End Extra Hours</button>
+    </div>
+    <!-- New: Log of today's actions -->
+    <div id="day-log">
+      <div class="log-section" id="main-log"></div>
+      <div class="log-section" id="break-log"></div>
+      <div class="log-section" id="extra-log"></div>
+    </div>
+    <div id="msg"></div>
+
+    <!-- Modal for confirmation -->
+    <div id="modalConfirm">
+      <div class="modal-content">
+        <p id="modalMsg"></p>
+        <div class="modal-time" id="modalTime"></div>
+        <button onclick="confirmAction()">OK</button>
+      </div>
+    </div>
+
+    <script>
+      // The employee name is injected by Apps Script server-side templating
+      var employeeName = '<?= employee ?>';
+      let breakStartTime = null, extraStartTime = null, mainStartTime = null;
+      let pendingAction = null;
+
+      // ==== Persistent log state for today ====
+
+      // Load today's logs from localStorage (or empty log structure)
+      let todayLogs = loadTodayLogs();
+      let openPeriods = getOpenPeriodsFromLogs(todayLogs);
+
+      // --- Persistence Helpers ---
+
+      // Get string key for today (YYYY-MM-DD)
+      function getTodayKey() {
+        const now = new Date();
+        // Pad month and date for correct sort order
+        let mm = String(now.getMonth() + 1).padStart(2, '0');
+        let dd = String(now.getDate()).padStart(2, '0');
+        return now.getFullYear() + "-" + mm + "-" + dd;
+      }
+
+      // Load logs for today from localStorage
+      function loadTodayLogs() {
+        let key = "attendanceLog_" + getTodayKey();
+        let raw = localStorage.getItem(key);
+        if (raw) {
+          // Restore JS Date objects from strings
+          let logs = JSON.parse(raw);
+          ['main','break','extra'].forEach(cat => {
+            logs[cat] = logs[cat].map(ev => ({...ev, time: new Date(ev.time)}));
+          });
+          return logs;
+        }
+        return { main: [], break: [], extra: [] };
+      }
+
+      // Save logs for today to localStorage
+      function saveTodayLogs() {
+        let key = "attendanceLog_" + getTodayKey();
+        localStorage.setItem(key, JSON.stringify(todayLogs));
+      }
+
+      // Infer open periods from logs
+      function getOpenPeriodsFromLogs(logs) {
+        let open = { main: null, break: null, extra: null };
+        ['main','break','extra'].forEach(cat => {
+          let lastIn = null;
+          logs[cat].forEach(ev => {
+            if (ev.type === 'in') lastIn = ev.time;
+            if (ev.type === 'out') lastIn = null;
+          });
+          open[cat] = lastIn;
+        });
+        return open;
+      }
+
+      // ===============================
+
+      window.onload = function() {
+        if (!employeeName) {
+          document.getElementById("employeeName").innerText = "⛔ No name found!";
+          Array.from(document.querySelectorAll("button")).forEach(btn => btn.disabled = true);
+          document.getElementById("msg").innerText += "\nAccess denied: This link requires your personal employee link.";
+          return;
+        }
+        document.getElementById("employeeName").innerText = "👤 " + employeeName;
+        startClock();
+        renderDayLog();
+      };
+
+      function startClock() {
+        setInterval(() => {
+          const now = new Date();
+          document.getElementById('datetime').innerText = now.toLocaleString();
+        }, 1000);
+      }
+
+      function showModal(action) {
+        // Custom modal message and time
+        let msg = '', category = '', totalMin = 0;
+        let now = new Date();
+        let duration = getCurrentDuration(action, now);
+
+        switch(action) {
+          case 'clockin':
+            msg = `🚪 Welcome to work, ${employeeName}! 🌞 We wish you a nice and happy work day. You are at the door and about to start the day. Let's make it a good one!`;
+            category = 'main';
+            break;
+          case 'clockout':
+            msg = `🕔 Great job today, ${employeeName}! We hope you had a great day at work and you gave your best. 🙏 Thank you for your effort! Are you sure you want to clock out? See you tomorrow!`;
+            category = 'main';
+            break;
+          case 'startbreak':
+            msg = `🍽️ ${employeeName}, you are about to go to lunch. Have a good meal! 😋 Enjoy your break and recharge your energy.`;
+            category = 'break';
+            break;
+          case 'endbreak':
+            msg = `💼 Welcome back, ${employeeName}! You are about to return to work from your lunch break. Ready to get back to it? Let's finish strong! 💪`;
+            category = 'break';
+            break;
+          case 'startextra':
+            msg = `⏰ ${employeeName}, you are about to start extra hours. Thank you for your dedication! 🚀`;
+            category = 'extra';
+            break;
+          case 'endextra':
+            msg = `🛑 ${employeeName}, you are about to finish your extra hours. Thank you for going the extra mile! 🙌`;
+            category = 'extra';
+          break;
+        }
+
+
+        // Show running total before action is confirmed
+        totalMin = getCategoryTotalMinutes(category, now, (action.endsWith('in') || action.startsWith('start')) ? false : true);
+
+        let humanTime = formatDuration(totalMin);
+        document.getElementById('modalMsg').innerText = msg;
+        document.getElementById('modalTime').innerText = `Total running time for this part: ${humanTime}`;
+        document.getElementById('modalConfirm').style.display = 'flex';
+        pendingAction = action;
+      }
+
+      function confirmAction() {
+        document.getElementById('modalConfirm').style.display = 'none';
+        submitAttendance(pendingAction);
+        pendingAction = null;
+      }
+
+      function submitAttendance(action) {
+        document.getElementById("msg").innerHTML = "⏳ <em>Submitting attendance...</em>";
+
+        if (!employeeName) {
+          document.getElementById("msg").innerText = "⛔ Error: No employee name set.";
+          return;
+        }
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const day = now.getDate();
+
+        // --- Log the action and update open periods ---
+        if (action === 'clockin') {
+          document.getElementById("status").innerText = "Status: Clocked In ✅";
+          todayLogs.main.push({ type: 'in', time: now });
+          openPeriods.main = now;
+        } else if (action === 'clockout') {
+          document.getElementById("status").innerText = "Status: Clocked Out 🕔";
+          todayLogs.main.push({ type: 'out', time: now });
+          openPeriods.main = null;
+        } else if (action === 'startbreak') {
+          document.getElementById("status").innerText = "Status: On Break 🛑";
+          todayLogs.break.push({ type: 'in', time: now });
+          openPeriods.break = now;
+        } else if (action === 'endbreak') {
+          document.getElementById("status").innerText = "Status: Break Ended ✅";
+          todayLogs.break.push({ type: 'out', time: now });
+          openPeriods.break = null;
+        } else if (action === 'startextra') {
+          document.getElementById("status").innerText = "Status: Extra Hours Started ➕";
+          todayLogs.extra.push({ type: 'in', time: now });
+          openPeriods.extra = now;
+        } else if (action === 'endextra') {
+          document.getElementById("status").innerText = "Status: Extra Hours Ended 🛑";
+          todayLogs.extra.push({ type: 'out', time: now });
+          openPeriods.extra = null;
+        }
+
+        renderDayLog();
+
+        google.script.run.withSuccessHandler(function(response) {
+          document.getElementById("msg").innerText = response.message;
+        }).recordAttendance(employeeName, action, day);
+      }
+
+      // Helper to render log sections with running total
+      function renderDayLog() {
+        function renderSection(arr, label) {
+          let entries = [], totalMin = 0, isOpen = false, lastTime = null;
+          arr.forEach(ev => {
+            let tstr = ev.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            entries.push(`<div class="log-entry">${tstr} - ${ev.type === 'in' ? 'Start' : 'End'}</div>`);
+          });
+          totalMin = getCategoryTotalMinutes(label);
+          return `
+            <div class="log-title">${label.charAt(0).toUpperCase() + label.slice(1)}:</div>
+            ${entries.length ? entries.join('') : '<div class="log-entry" style="color:#aaa">—</div>'}
+            <div class="log-total">Total: ${formatDuration(totalMin)}</div>
+          `;
+        }
+        document.getElementById('main-log').innerHTML = renderSection(todayLogs.main, 'main');
+        document.getElementById('break-log').innerHTML = renderSection(todayLogs.break, 'break');
+        document.getElementById('extra-log').innerHTML = renderSection(todayLogs.extra, 'extra');
+      }
+
+      // Calculate total minutes for each category (main, break, extra)
+      function getCategoryTotalMinutes(category, now = null, ignoreOpen = false) {
+        let logs = todayLogs[category];
+        let total = 0;
+        let last = null;
+        logs.forEach(ev => {
+          if (ev.type === 'in') last = ev.time;
+          else if (ev.type === 'out' && last) {
+            total += (ev.time - last) / 60000; // ms to min
+            last = null;
+          }
+        });
+        // If currently open (no out after in), add till now (unless ignoreOpen)
+        if (!ignoreOpen && last && (now || new Date())) {
+          total += ((now || new Date()) - last) / 60000;
+        }
+        return Math.round(total);
+      }
+
+      // For modal: estimate current running session duration for next action
+      function getCurrentDuration(action, now) {
+        // For actions that start something, show total so far.
+        // For actions that end something, show total if ended now.
+        if (['clockin', 'startextra', 'startbreak'].includes(action)) {
+          if (action === 'clockin') return getCategoryTotalMinutes('main', now, true);
+          if (action === 'startbreak') return getCategoryTotalMinutes('break', now, true);
+          if (action === 'startextra') return getCategoryTotalMinutes('extra', now, true);
+        } else {
+          // clockout/endbreak/endextra
+          if (action === 'clockout') return getCategoryTotalMinutes('main', now, false);
+          if (action === 'endbreak') return getCategoryTotalMinutes('break', now, false);
+          if (action === 'endextra') return getCategoryTotalMinutes('extra', now, false);
+        }
+        return 0;
+      }
+
+      function formatDuration(mins) {
+        if (mins <= 0) return '0 min';
+        let h = Math.floor(mins / 60);
+        let m = mins % 60;
+        return (h ? `${h}h ` : '') + (m ? `${m}min` : (h ? '' : '0 min'));
+      }
+    </script>
+  </body>
+</html>
