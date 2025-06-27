@@ -132,9 +132,9 @@ def _ensure_month_grid(ws, emp: str, month: str) -> None:
 
     # 3) labels in col A, rows 2-11
     labels = [
-        emp, "(Out)", "(Duration)", "(Work Outcome)",
-        "(Break Start)", "(Break End)", "(Break Outcome)",
-        "(Extra Start)", "(Extra End)", "(Extra Outcome)"
+        "(Main-In)", "(Main-Out)", "(Duration)", "(Work Outcome)",
+        "(Break-In)", "(Break-Out)", "(Break Outcome)",
+        "(Extra-In)", "(Extra-Out)", "(Extra Outcome)"
     ]
     ws.update("A2:A11", [[l] for l in labels])
 
@@ -362,15 +362,6 @@ def clock(body: ClockBody):
 
         def iso(t): return t.isoformat() if t else ""
 
-        ws.append_row([
-            now.isoformat(), body.action, body.dayflag, mon,
-            iso(now) if body.action=="clockin"   else "",
-            iso(now) if body.action=="clockout"  else "",
-            iso(now) if body.action=="startbreak" else "",
-            iso(now) if body.action=="endbreak"   else "",
-            iso(now) if body.action=="startextra" else "",
-            iso(now) if body.action=="endextra"   else ""
-        ])
         # NEW – keep the per-employee month grid in sync
         _ensure_month_grid(ws, body.employee, mon)
         _record_into_grid(ws, body.action, now)
