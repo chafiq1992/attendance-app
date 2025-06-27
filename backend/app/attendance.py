@@ -84,7 +84,8 @@ def _ws(emp:str):
     return ws
 
 def _month_sep(ws, month):
-    months = [m[0] for m in ws.get_values("D3:D")]
+    # gspread may return [] for blank rows so guard indexing
+    months = [m[0] for m in ws.get_values("D3:D") if m]
     last   = next((m for m in reversed(months) if m), "")
     if last != month:
         ws.insert_rows([[], []], row=3)

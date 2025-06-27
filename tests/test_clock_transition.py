@@ -64,3 +64,12 @@ def test_clock_transition_inserts_rows():
     })
     assert resp.status_code == 200
     fake_ws.insert_rows.assert_called_with([[], []], row=3)
+
+
+def test_empty_month_rows_do_not_error():
+    fake_ws.get_values.return_value = [[], []]
+    resp = client.post('/attendance/clock', json={
+        'employee': 'Bob',
+        'action': 'clockin'
+    })
+    assert resp.status_code == 200
