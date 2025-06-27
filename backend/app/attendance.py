@@ -280,6 +280,8 @@ def clock(body: ClockBody):
         iso(now) if body.action=="startextra" else "",
         iso(now) if body.action=="endextra"   else ""
     ])
+    # also store data in the legacy day‑oriented table
+    record_attendance_table(body.employee, body.action, now)
     return _update_summary(ws, body.employee, mon)
 
 @router.get("/summary", response_model=Summary)
