@@ -1,14 +1,17 @@
 # ────────────────────────────────────────────────────────────────
 #  Attendance API – One sheet tab per employee, live month summary
 # ----------------------------------------------------------------
-import json, os, base64 
-import os, json, datetime as dt
+import os
+import json
+import base64
+import datetime as dt
 from typing import List, Optional, Dict
-import gspread, pytz
-from google.oauth2.service_account import Credentials 
+
+import gspread
+import pytz
+from google.oauth2.service_account import Credentials
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-
 # --- Google secret handling ------------------------------------
 cred_b64 = os.getenv("GOOGLE_CREDENTIALS_B64", "")
 if not cred_b64:
