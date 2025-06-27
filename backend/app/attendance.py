@@ -13,6 +13,10 @@ import pytz
 from google.oauth2.service_account import Credentials
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+from .attendance_legacy import (
+    to_excel_time, break_outcome, extra_outcome,
+    main_duration_and_outcome
+)
 
 # --- Google secret handling ------------------------------------
 cred_b64 = os.getenv("GOOGLE_CREDENTIALS_B64", "")
@@ -200,37 +204,46 @@ def _ensure_month_grid(ws, emp: str, month: str) -> None:
     ws.freeze(rows=2)
 
 
-def _record_into_grid(ws, action: str, ts: dt.datetime) -> None:
-    """Write a single hh:mm:ss value into the proper cell of the grid."""
-    col = ts.day + 1  # 1-based; B=2, …, 31→AF=32
-    row_map = {
-        "clockin": 2,
-        "clockout": 3,
-        "startbreak": 6,
-        "endbreak": 7,
-        "startextra": 9,
-        "endextra": 10,
+def _record_into_grid(ws, action: str, ts: dt.datetime, start_row: int):
+    """
+    Write the punch + immediately recompute the 3 outcome rows.
+
+    start_row → the first row of the 10-row block for this employee.
+    """
+    col = ts.day + 1                           # 1-based; B=2 … AF=32
+    time_serial = to_excel_time(ts.strftime("%H:%M"))
+
+    rows = {
+        "clockin":     start_row,         # Main-In
+        "clockout":    start_row + 1,     # Main-Out
+        "startbreak":  start_row + 4,     # Break-In
+        "endbreak":    start_row + 5,     # Break-Out
+        "startextra":  start_row + 7,     # Extra-In
+        "endextra":    start_row + 8      # Extra-Out
     }
-    if action not in row_map:
-        return
-    row = row_map[action]
+    if action in rows:
+        ws.update_cell(rows[action], col, time_serial)
+        ws.format(gspread.utils.rowcol_to_a1(rows[action], col),
+                  {"numberFormat": {"type": "TIME", "pattern": "hh:mm"}})
 
-    # convert row/col to A1 notation (e.g. B2)
-    def _a1(r: int, c: int) -> str:
-        label = ""
-        while c:
-            c, rem = divmod(c - 1, 26)
-            label = chr(65 + rem) + label
-        return f"{label}{r}"
+    # ── Re-calculate durations/outcomes exactly like GAS ──────────
+    vals = lambda r: ws.cell(r, col, value_render_option="UNFORMATTED_VALUE").value
 
-    cell = _a1(row, col)
+    # Main
+    dur_txt, outcome_txt = main_duration_and_outcome(
+        vals(start_row), vals(start_row + 1),
+        vals(start_row + 4), vals(start_row + 5)
+    )
+    ws.update_cell(start_row + 2, col, dur_txt)
+    ws.update_cell(start_row + 3, col, outcome_txt)
 
-    # numeric time value (incl. seconds) so formulas keep working
-    value = ts.hour / 24 + ts.minute / 1440 + ts.second / 86400
-    ws.update(cell, value)
+    # Break
+    ws.update_cell(start_row + 6, col,
+                   break_outcome(vals(start_row + 4), vals(start_row + 5)))
 
-    # format that one cell as hh:mm:ss so you never see 0.89 again
-    ws.format(cell, {"numberFormat": {"type": "TIME", "pattern": "hh:mm:ss"}})
+    # Extra
+    ws.update_cell(start_row + 9, col,
+                   extra_outcome(vals(start_row + 7), vals(start_row + 8)))
 
 
 def _find_or_create_employee_row(name: str, ws) -> int:
@@ -454,37 +467,14 @@ def clock(body: ClockBody):
 
         # NEW – keep the per-employee month grid in sync
         _ensure_month_grid(ws, body.employee, mon)
-        _record_into_grid(ws, body.action, now)
+        start_row = _find_or_create_employee_row(body.employee, ws)
+        _record_into_grid(ws, body.action, now, start_row)
         return _update_summary(ws, body.employee, mon)
     except Exception:
         logging.exception("Failed to record attendance")
         raise HTTPException(status_code=500, detail="Failed to record attendance")
 
 
-# ────────────────────────────────────────────────────────────────
-#  Helper – convert whatever Google gives us back into float hours
-# ────────────────────────────────────────────────────────────────
-def _hours_from_cell(val):
-    """Return float-hours or None for an empty cell."""
-    if val in (None, "", "—"):
-        return None
-    # A) numeric TIME serial (0 … 1) – easiest case
-    try:
-        return float(val) * 24
-    except (ValueError, TypeError):
-        pass
-    # B) formatted "hh:mm:ss"
-    if isinstance(val, str) and ":" in val:
-        parts = [int(p) for p in val.split(":")]
-        if len(parts) == 2:
-            h, m = parts
-            s = 0
-        elif len(parts) == 3:
-            h, m, s = parts
-        else:
-            return None
-        return h + m / 60 + s / 3600
-    return None
 
 
 # ────────────────────────────────────────────────────────────────
@@ -518,11 +508,9 @@ def summary(employee: str = Query(...), month: str | None = None):
         incell = ws.cell(in_row, col, value_render_option="UNFORMATTED_VALUE").value
         outcell = ws.cell(out_row, col, value_render_option="UNFORMATTED_VALUE").value
 
-        h_in = _hours_from_cell(incell)
-        h_out = _hours_from_cell(outcell)
-        if h_in is not None and h_out is not None and h_out > h_in:
+        if isinstance(incell, (int, float)) and isinstance(outcell, (int, float)) and outcell > incell:
             worked_days += 1
-            total_hours += h_out - h_in
+            total_hours += (outcell - incell) * 24
 
     return {"month": month, "days": worked_days, "hours": round(total_hours, 2)}
 

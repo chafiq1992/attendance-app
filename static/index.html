@@ -353,16 +353,15 @@
 
         renderDayLog();
 
-        const payload = {
-          employee: employeeName,
-          action:   action,
-          ts:       new Date().toISOString()
-        };
-
         // Store data directly in the per-employee table
-        apiPost('/attendance/clock', payload)
-          .then(r  => document.getElementById('msg').innerHTML = '✅ Saved!')
-          .catch(e => document.getElementById('msg').innerHTML = '❌ ' + e.message);
+        fetch(`${API}/attendance/clock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employee: employeeName, action })
+        })
+        .then(r => r.json())
+        .then(j => document.getElementById("msg").innerText = j.message)
+        .catch(e => document.getElementById("msg").innerText = '❌ '+e);
       }
 
       // Helper to render log sections with running total
