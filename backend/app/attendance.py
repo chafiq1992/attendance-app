@@ -182,17 +182,18 @@ def _ensure_month_grid(ws, emp: str, month: str) -> None:
     )
 
     # 3) labels in col A, rows 2-11
+    # First column labels – updated to match the UI table
     labels = [
-        "(Main-In)",
-        "(Main-Out)",
-        "(Duration)",
-        "(Work Outcome)",
-        "(Break-In)",
-        "(Break-Out)",
-        "(Break Outcome)",
-        "(Extra-In)",
-        "(Extra-Out)",
-        "(Extra Outcome)",
+        "Clock-In",
+        "Clock-Out",
+        "Main (h m)",
+        "Break-Start",
+        "Break-End",
+        "Break (min)",
+        "Extra-Start",
+        "Extra-End",
+        "Extra (min)",
+        "Outcome",
     ]
     ws.update("A2:A11", [[l] for l in labels])
 
