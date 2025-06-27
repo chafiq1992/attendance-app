@@ -73,3 +73,14 @@ def test_empty_month_rows_do_not_error():
         'action': 'clockin'
     })
     assert resp.status_code == 200
+
+
+def test_clock_failing_returns_friendly_error():
+    fake_ws.append_row.side_effect = Exception("gs fail")
+    resp = client.post('/attendance/clock', json={
+        'employee': 'Alice',
+        'action': 'clockin'
+    })
+    assert resp.status_code == 500
+    assert resp.json() == {'detail': 'Failed to record attendance'}
+    fake_ws.append_row.side_effect = None
