@@ -6,6 +6,7 @@ import json
 import base64
 import datetime as dt
 from typing import List, Optional, Dict
+import logging
 
 import gspread
 import pytz
@@ -263,26 +264,30 @@ def _update_summary(ws, emp, month)->Summary:
 # ---------- Routes ----------
 @router.post("/clock", response_model=Summary)
 def clock(body: ClockBody):
-    tz   = pytz.timezone(os.getenv("TZ","Africa/Casablanca"))
-    now  = dt.datetime.now(tz)
-    mon  = now.strftime("%Y-%m")
-    ws   = _ws(body.employee)
-    _month_sep(ws, mon)
+    try:
+        tz   = pytz.timezone(os.getenv("TZ","Africa/Casablanca"))
+        now  = dt.datetime.now(tz)
+        mon  = now.strftime("%Y-%m")
+        ws   = _ws(body.employee)
+        _month_sep(ws, mon)
 
-    def iso(t): return t.isoformat() if t else ""
+        def iso(t): return t.isoformat() if t else ""
 
-    ws.append_row([
-        now.isoformat(), body.action, body.dayflag, mon,
-        iso(now) if body.action=="clockin"   else "",
-        iso(now) if body.action=="clockout"  else "",
-        iso(now) if body.action=="startbreak" else "",
-        iso(now) if body.action=="endbreak"   else "",
-        iso(now) if body.action=="startextra" else "",
-        iso(now) if body.action=="endextra"   else ""
-    ])
-    # also store data in the legacy day‑oriented table
-    record_attendance_table(body.employee, body.action, now)
-    return _update_summary(ws, body.employee, mon)
+        ws.append_row([
+            now.isoformat(), body.action, body.dayflag, mon,
+            iso(now) if body.action=="clockin"   else "",
+            iso(now) if body.action=="clockout"  else "",
+            iso(now) if body.action=="startbreak" else "",
+            iso(now) if body.action=="endbreak"   else "",
+            iso(now) if body.action=="startextra" else "",
+            iso(now) if body.action=="endextra"   else ""
+        ])
+        # also store data in the legacy day‑oriented table
+        record_attendance_table(body.employee, body.action, now)
+        return _update_summary(ws, body.employee, mon)
+    except Exception:
+        logging.exception("Failed to record attendance")
+        raise HTTPException(status_code=500, detail="Failed to record attendance")
 
 @router.get("/summary", response_model=Summary)
 def summary(employee:str=Query(...), month:str=Query(None)):
