@@ -13,15 +13,16 @@ import pytz
 from google.oauth2.service_account import Credentials
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
 # --- Google secret handling ------------------------------------
 cred_b64 = os.getenv("GOOGLE_CREDENTIALS_B64", "")
 if not cred_b64:
     raise RuntimeError("Missing GOOGLE_CREDENTIALS_B64 env-var")
 
-creds_dict  = json.loads(base64.b64decode(cred_b64).decode("utf-8"))
-SCOPES      = ["https://www.googleapis.com/auth/spreadsheets"]
+creds_dict = json.loads(base64.b64decode(cred_b64).decode("utf-8"))
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 credentials = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-gc          = gspread.authorize(credentials)
+gc = gspread.authorize(credentials)
 
 spreadsheet_id = os.getenv("SPREADSHEET_ID", "")
 if not spreadsheet_id:
@@ -29,22 +30,26 @@ if not spreadsheet_id:
 
 ss = gc.open_by_key(spreadsheet_id)
 
+
 # ---------- Model for simple attendance endpoint ----------
 class AttendanceEvent(BaseModel):
     employee: str
-    action: str     # "clockin", "clockout", "startbreak", …
+    action: str  # "clockin", "clockout", "startbreak", …
     ts: dt.datetime
+
 
 # ---------- Wage map ----------
 # Example env var:
 #   EMPLOYEE_WAGES_JSON='{"Alice":80,"Bob":75,"Nora":90}'
 WAGE_MAP: Dict[str, float] = json.loads(os.getenv("EMPLOYEE_WAGES_JSON", "{}"))
 
+
 # ---------- Models ----------
 class ClockBody(BaseModel):
     employee: str
-    action:   str        # clockin / clockout / startbreak / endbreak / startextra / endextra
-    dayflag:  str = "full"  # "full" | "half" etc.
+    action: str  # clockin / clockout / startbreak / endbreak / startextra / endextra
+    dayflag: str = "full"  # "full" | "half" etc.
+
 
 class Summary(BaseModel):
     employee: str
@@ -53,46 +58,80 @@ class Summary(BaseModel):
     hours: float
     earned: float
 
+
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
 HEADER = [
-    "Timestamp","Action","DayFlag","Month",
-    "Main-In","Main-Out",
-    "Break-In","Break-Out",
-    "Extra-In","Extra-Out"
+    "Timestamp",
+    "Action",
+    "DayFlag",
+    "Month",
+    "Main-In",
+    "Main-Out",
+    "Break-In",
+    "Break-Out",
+    "Extra-In",
+    "Extra-Out",
 ]
 
 # ----- Legacy table style sheet -----
 ATTENDANCE_SHEET_NAME = "Attendance"
 
+
 # ---------- Helpers ----------
-def _ws(emp:str):
+def _ws(emp: str):
     if emp in [s.title for s in ss.worksheets()]:
         return ss.worksheet(emp)
     ws = ss.add_worksheet(title=emp, rows="1000", cols=str(len(HEADER)))
     ws.append_row(HEADER)
-    ws.format("1:1", {
-        "textFormat": {"bold": True},
-        "backgroundColor": {"red": .9, "green": .9, "blue": .9},
-        "borders": {"bottom": {"style": "SOLID_THICK", "color": {"red": 0, "green": 0, "blue": 0}}}
-    })
+    ws.format(
+        "1:1",
+        {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9},
+            "borders": {
+                "bottom": {
+                    "style": "SOLID_THICK",
+                    "color": {"red": 0, "green": 0, "blue": 0},
+                }
+            },
+        },
+    )
     ws.freeze(rows=2)
-    ws.insert_row([""]*len(HEADER), 2)   # summary row
-    ws.format("2:2", {
-        "textFormat": {"bold": True},
-        "borders": {"bottom": {"style": "SOLID_THICK", "color": {"red": 0.29, "green": 0.53, "blue": 0.91}}}
-    })
+    ws.insert_row([""] * len(HEADER), 2)  # summary row
+    ws.format(
+        "2:2",
+        {
+            "textFormat": {"bold": True},
+            "borders": {
+                "bottom": {
+                    "style": "SOLID_THICK",
+                    "color": {"red": 0.29, "green": 0.53, "blue": 0.91},
+                }
+            },
+        },
+    )
     return ws
+
 
 def _month_sep(ws, month):
     # gspread may return [] for blank rows so guard indexing
     months = [m[0] for m in ws.get_values("D3:D") if m]
-    last   = next((m for m in reversed(months) if m), "")
+    last = next((m for m in reversed(months) if m), "")
     if last != month:
         ws.insert_rows([[], []], row=3)
-        ws.format("3:3", {
-            "borders": {"top": {"style": "SOLID_THICK", "color": {"red": 0, "green": 0, "blue": 0}}}
-        })
+        ws.format(
+            "3:3",
+            {
+                "borders": {
+                    "top": {
+                        "style": "SOLID_THICK",
+                        "color": {"red": 0, "green": 0, "blue": 0},
+                    }
+                }
+            },
+        )
+
 
 # ----- Legacy attendance table helpers ---------------------------
 def _attendance_sheet():
@@ -104,9 +143,10 @@ def _attendance_sheet():
         # NEW – 31 days + Σ
         ws.append_row(["Name"] + [str(i) for i in range(1, 32)] + ["Σ"])
     # ensure enough columns for all days
-    if ws.col_count < 33:                       # 32 (day cols) + 1 Σ
+    if ws.col_count < 33:  # 32 (day cols) + 1 Σ
         ws.add_cols(33 - ws.col_count)
     return ws
+
 
 # ────────────────────────────────────────────────────────────────
 #  NEW – make sure the current-month grid is always at the top
@@ -123,18 +163,32 @@ def _ensure_month_grid(ws, emp: str, month: str) -> None:
     # 2) write header row 1  (month, 1 … 31, Σ)
     header = [month] + [str(d) for d in range(1, 32)] + ["Σ"]
     ws.update("A1:AG1", [header])
-    ws.format("1:1", {
-        "textFormat": {"bold": True},
-        "backgroundColor": {"red": .9, "green": .9, "blue": .9},
-        "borders": {"bottom": {"style": "SOLID_THICK",
-                               "color": {"red": 0, "green": 0, "blue": 0}}}
-    })
+    ws.format(
+        "1:1",
+        {
+            "textFormat": {"bold": True},
+            "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9},
+            "borders": {
+                "bottom": {
+                    "style": "SOLID_THICK",
+                    "color": {"red": 0, "green": 0, "blue": 0},
+                }
+            },
+        },
+    )
 
     # 3) labels in col A, rows 2-11
     labels = [
-        "(Main-In)", "(Main-Out)", "(Duration)", "(Work Outcome)",
-        "(Break-In)", "(Break-Out)", "(Break Outcome)",
-        "(Extra-In)", "(Extra-Out)", "(Extra Outcome)"
+        "(Main-In)",
+        "(Main-Out)",
+        "(Duration)",
+        "(Work Outcome)",
+        "(Break-In)",
+        "(Break-Out)",
+        "(Break Outcome)",
+        "(Extra-In)",
+        "(Extra-Out)",
+        "(Extra Outcome)",
     ]
     ws.update("A2:A11", [[l] for l in labels])
 
@@ -148,18 +202,19 @@ def _ensure_month_grid(ws, emp: str, month: str) -> None:
 
 def _record_into_grid(ws, action: str, ts: dt.datetime) -> None:
     """Write a single hh:mm:ss value into the proper cell of the grid."""
-    col = ts.day + 1                    # 1-based; B=2, …, 31→AF=32
+    col = ts.day + 1  # 1-based; B=2, …, 31→AF=32
     row_map = {
-        "clockin":     2,
-        "clockout":    3,
-        "startbreak":  6,
-        "endbreak":    7,
-        "startextra":  9,
-        "endextra":   10,
+        "clockin": 2,
+        "clockout": 3,
+        "startbreak": 6,
+        "endbreak": 7,
+        "startextra": 9,
+        "endextra": 10,
     }
     if action not in row_map:
         return
-    row  = row_map[action]
+    row = row_map[action]
+
     # convert row/col to A1 notation (e.g. B2)
     def _a1(r: int, c: int) -> str:
         label = ""
@@ -171,7 +226,7 @@ def _record_into_grid(ws, action: str, ts: dt.datetime) -> None:
     cell = _a1(row, col)
 
     # numeric time value (incl. seconds) so formulas keep working
-    value = ts.hour/24 + ts.minute/1440 + ts.second/86400
+    value = ts.hour / 24 + ts.minute / 1440 + ts.second / 86400
     ws.update(cell, value)
 
     # format that one cell as hh:mm:ss so you never see 0.89 again
@@ -203,11 +258,11 @@ def _find_or_create_employee_row(name: str, ws) -> int:
     for i, label in enumerate(labels):
         ws.update_cell(start_row + i, 1, label)
     # ─── Σ formulas – written once ───────────────────────────
-    sum_col = 33        # column AG (after AF = 32)
+    sum_col = 33  # column AG (after AF = 32)
     # Work Outcome  → row start+3  • Break Outcome → start+6  • Extra Outcome → start+9
-    ws.update_cell(start_row + 3, sum_col,  f"=SUM(B{start_row+3}:AF{start_row+3})")
-    ws.update_cell(start_row + 6, sum_col,  f"=SUM(B{start_row+6}:AF{start_row+6})")
-    ws.update_cell(start_row + 9, sum_col,  f"=SUM(B{start_row+9}:AF{start_row+9})")
+    ws.update_cell(start_row + 3, sum_col, f"=SUM(B{start_row+3}:AF{start_row+3})")
+    ws.update_cell(start_row + 6, sum_col, f"=SUM(B{start_row+6}:AF{start_row+6})")
+    ws.update_cell(start_row + 9, sum_col, f"=SUM(B{start_row+9}:AF{start_row+9})")
     return start_row
 
 
@@ -268,13 +323,13 @@ def _main_duration(clock_in, clock_out, break_start, break_end, fmt="h m") -> st
 
 
 def record_attendance_table(emp: str, action: str, ts: dt.datetime) -> None:
-    ws          = _attendance_sheet()
+    ws = _attendance_sheet()
 
     # NEW ➜ drop a fresh grid at the top whenever the month changes
-    current_mon = ts.strftime("%Y-%m")          # e.g. "2025-06"
+    current_mon = ts.strftime("%Y-%m")  # e.g. "2025-06"
     _ensure_month_grid(ws, emp, current_mon)
 
-    column      = ts.day + 1                    # 1 → col B, 31 → col AF
+    column = ts.day + 1  # 1 → col B, 31 → col AF
     start = _find_or_create_employee_row(emp, ws)
     rows = {
         "clockin": start,
@@ -315,32 +370,65 @@ def record_attendance_table(emp: str, action: str, ts: dt.datetime) -> None:
         ),
     )
 
-def _update_summary(ws, emp, month)->Summary:
+
+def _update_summary(ws, emp, month) -> Summary:
     vals = ws.get_values("A3:J")
     mins, days, clock_in, extra_in = 0, set(), None, None
     for r in vals:
-        if not r or r[3] != month: continue
-        ts  = dt.datetime.fromisoformat(r[0]) if r[0] else None
+        if not r or r[3] != month:
+            continue
+        ts = dt.datetime.fromisoformat(r[0]) if r[0] else None
         act = r[1]
-        if act=="clockin":  clock_in = ts; days.add(r[2])
-        if act=="clockout" and clock_in:
-            mins += (ts-clock_in).total_seconds()/60; clock_in=None
-        if act=="startextra": extra_in = ts
-        if act=="endextra" and extra_in:
-            mins += (ts-extra_in).total_seconds()/60; extra_in=None
-    hours  = round(mins/60,2)
-    earned = WAGE_MAP.get(emp,0)*len(days)
-    ws.batch_update([{
-        "range":"A2:F2",
-        "values":[[f"📅 {month}","","Days: {len(days)}","","🕒 {hours} h",f"💵 {earned} DH"]]
-    },{
-        "range":"A2:F2",
-        "cell":{"userEnteredFormat":{"textFormat":{"bold":True},
-               "backgroundColor":{"red":.85,"green":.9,"blue":1},
-               "borders":{"bottom":{"style":"SOLID_THICK","color":
-                         {"red":.29,"green":.53,"blue":.91}}}}}
-    }], fields="userEnteredFormat")
-    return Summary(employee=emp,month=month,days=len(days),hours=hours,earned=earned)
+        if act == "clockin":
+            clock_in = ts
+            days.add(r[2])
+        if act == "clockout" and clock_in:
+            mins += (ts - clock_in).total_seconds() / 60
+            clock_in = None
+        if act == "startextra":
+            extra_in = ts
+        if act == "endextra" and extra_in:
+            mins += (ts - extra_in).total_seconds() / 60
+            extra_in = None
+    hours = round(mins / 60, 2)
+    earned = WAGE_MAP.get(emp, 0) * len(days)
+    ws.batch_update(
+        [
+            {
+                "range": "A2:F2",
+                "values": [
+                    [
+                        f"📅 {month}",
+                        "",
+                        "Days: {len(days)}",
+                        "",
+                        "🕒 {hours} h",
+                        f"💵 {earned} DH",
+                    ]
+                ],
+            },
+            {
+                "range": "A2:F2",
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {"bold": True},
+                        "backgroundColor": {"red": 0.85, "green": 0.9, "blue": 1},
+                        "borders": {
+                            "bottom": {
+                                "style": "SOLID_THICK",
+                                "color": {"red": 0.29, "green": 0.53, "blue": 0.91},
+                            }
+                        },
+                    }
+                },
+            },
+        ],
+        fields="userEnteredFormat",
+    )
+    return Summary(
+        employee=emp, month=month, days=len(days), hours=hours, earned=earned
+    )
+
 
 def _month_grid(ws, emp: str, month: str):
     """Return the 10-row month grid from the employee worksheet."""
@@ -350,17 +438,19 @@ def _month_grid(ws, emp: str, month: str):
     rows = data[1:]
     return {"header": header, "rows": rows}
 
+
 # ---------- Routes ----------
 @router.post("/clock", response_model=Summary)
 def clock(body: ClockBody):
     try:
-        tz   = pytz.timezone(os.getenv("TZ","Africa/Casablanca"))
-        now  = dt.datetime.now(tz)
-        mon  = now.strftime("%Y-%m")
-        ws   = _ws(body.employee)
+        tz = pytz.timezone(os.getenv("TZ", "Africa/Casablanca"))
+        now = dt.datetime.now(tz)
+        mon = now.strftime("%Y-%m")
+        ws = _ws(body.employee)
         _month_sep(ws, mon)
 
-        def iso(t): return t.isoformat() if t else ""
+        def iso(t):
+            return t.isoformat() if t else ""
 
         # NEW – keep the per-employee month grid in sync
         _ensure_month_grid(ws, body.employee, mon)
@@ -370,12 +460,72 @@ def clock(body: ClockBody):
         logging.exception("Failed to record attendance")
         raise HTTPException(status_code=500, detail="Failed to record attendance")
 
-@router.get("/summary", response_model=Summary)
-def summary(employee:str=Query(...), month:str=Query(None)):
-    if not month:
+
+# ────────────────────────────────────────────────────────────────
+#  Helper – convert whatever Google gives us back into float hours
+# ────────────────────────────────────────────────────────────────
+def _hours_from_cell(val):
+    """Return float-hours or None for an empty cell."""
+    if val in (None, "", "—"):
+        return None
+    # A) numeric TIME serial (0 … 1) – easiest case
+    try:
+        return float(val) * 24
+    except (ValueError, TypeError):
+        pass
+    # B) formatted "hh:mm:ss"
+    if isinstance(val, str) and ":" in val:
+        parts = [int(p) for p in val.split(":")]
+        if len(parts) == 2:
+            h, m = parts
+            s = 0
+        elif len(parts) == 3:
+            h, m, s = parts
+        else:
+            return None
+        return h + m / 60 + s / 3600
+    return None
+
+
+# ────────────────────────────────────────────────────────────────
+#  /attendance/summary  – now reads the TOP grid (no raw log needed)
+# ────────────────────────────────────────────────────────────────
+@router.get("/summary")
+def summary(employee: str = Query(...), month: str | None = None):
+    """
+    Quick totals for an employee & month
+
+    Returns → {month, days, hours}
+    """
+    if month is None:
         month = dt.datetime.now().strftime("%Y-%m")
-    ws = _ws(employee)
-    return _update_summary(ws, employee, month)
+
+    # open that employee’s sheet
+    try:
+        ws = gc.open_by_key(spreadsheet_id).worksheet(employee)
+    except gspread.WorksheetNotFound:
+        raise HTTPException(status_code=404, detail="Employee sheet not found")
+
+    # make sure the month grid exists (will create it on first punch-in)
+    _ensure_month_grid(ws, employee, month)
+
+    # rows: 2 = Main-In   · 3 = Main-Out
+    in_row, out_row = 2, 3
+    worked_days, total_hours = 0, 0.0
+
+    # columns B (=2) … AF (=32)  → range 2-32 inclusive
+    for col in range(2, 33):
+        incell = ws.cell(in_row, col, value_render_option="UNFORMATTED_VALUE").value
+        outcell = ws.cell(out_row, col, value_render_option="UNFORMATTED_VALUE").value
+
+        h_in = _hours_from_cell(incell)
+        h_out = _hours_from_cell(outcell)
+        if h_in is not None and h_out is not None and h_out > h_in:
+            worked_days += 1
+            total_hours += h_out - h_in
+
+    return {"month": month, "days": worked_days, "hours": round(total_hours, 2)}
+
 
 @router.get("/month-grid")
 def month_grid(employee: str = Query(...), month: str = Query(None)):
@@ -384,6 +534,7 @@ def month_grid(employee: str = Query(...), month: str = Query(None)):
         month = dt.datetime.now().strftime("%Y-%m")
     ws = _ws(employee)
     return _month_grid(ws, employee, month)
+
 
 # ---------- Simplified attendance endpoint ----------
 @router.post("")
