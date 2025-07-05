@@ -99,6 +99,21 @@ def attendance():
     ok, msg = record_time(employee, action, today)
     return jsonify(ok=ok, msg=msg)
 
+@server.route("/sheet_data")
+def sheet_data_route():
+    """Return raw sheet values for the given employee."""
+    employee = request.args.get("employee", "").strip()
+    if not employee:
+        return {"ok": False, "msg": "employee required"}, 400
+
+    ensure_employee_sheet(employee)
+    result = sheet.values().get(
+        spreadsheetId=config.GOOGLE_SHEET_ID,
+        range=f"{employee}!A1:AG11",
+    ).execute()
+    values = result.get("values", [])
+    return jsonify(values=values)
+
 # Cloud Run health check
 @server.route("/healthz")
 def health():

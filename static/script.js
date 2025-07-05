@@ -217,3 +217,92 @@ function formatDuration(mins) {
   let m = mins % 60;
   return (h ? `${h}h ` : '') + (m ? `${m}min` : (h ? '' : '0 min'));
 }
+
+// ===== Tabs & Sheet Data =====
+document.querySelectorAll('.tab-button').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+let sheetLoaded = false;
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  document.querySelectorAll('.tab-content').forEach(div => {
+    div.classList.toggle('active', div.id === 'tab-' + tab);
+  });
+  if ((tab === 'sheet' || tab === 'stats') && !sheetLoaded) {
+    fetchSheetData();
+  }
+}
+
+function fetchSheetData() {
+  fetch('/sheet_data?employee=' + encodeURIComponent(employeeName))
+    .then(r => r.json())
+    .then(data => {
+      sheetLoaded = true;
+      renderSheetTable(data.values || []);
+      renderStats(data.values || []);
+    })
+    .catch(() => {
+      document.getElementById('sheet-table').innerText = 'Error loading data';
+    });
+}
+
+function renderSheetTable(values) {
+  if (!values.length) {
+    document.getElementById('sheet-table').innerText = 'No data';
+    return;
+  }
+  let html = '<table><thead><tr>';
+  values[0].forEach(h => { html += '<th>' + (h || '') + '</th>'; });
+  html += '</tr></thead><tbody>';
+  for (let r = 1; r < values.length; r++) {
+    html += '<tr>';
+    for (let c = 0; c < values[r].length; c++) {
+      html += '<td>' + (values[r][c] || '') + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('sheet-table').innerHTML = html;
+}
+
+function parseTime(str) {
+  if (!str) return null;
+  const parts = str.split(':').map(Number);
+  if (parts.length !== 2 || parts.some(isNaN)) return null;
+  return parts[0] * 60 + parts[1];
+}
+
+function renderStats(values) {
+  if (!values.length) {
+    document.getElementById('stats-content').innerText = 'No data';
+    return;
+  }
+  let workedDays = 0, totalMin = 0;
+  let cols = values[0].length;
+  for (let c = 1; c < cols; c++) {
+    let inM = parseTime(values[1]?.[c]);
+    let outM = parseTime(values[2]?.[c]);
+    if (inM != null && outM != null && outM > inM) {
+      let minutes = outM - inM;
+      let bStart = parseTime(values[5]?.[c]);
+      let bEnd = parseTime(values[6]?.[c]);
+      if (bStart != null && bEnd != null && bEnd > bStart) {
+        minutes -= (bEnd - bStart);
+      }
+      let eStart = parseTime(values[8]?.[c]);
+      let eEnd = parseTime(values[9]?.[c]);
+      if (eStart != null && eEnd != null && eEnd > eStart) {
+        minutes += (eEnd - eStart);
+      }
+      totalMin += minutes;
+      workedDays += 1;
+    }
+  }
+  document.getElementById('stats-content').innerHTML =
+    `<p>Worked days: <strong>${workedDays}</strong></p>` +
+    `<p>Total hours: <strong>${formatDuration(totalMin)}</strong></p>`;
+}
