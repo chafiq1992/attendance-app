@@ -103,3 +103,49 @@ h2 {
   border-radius: 8px;
   cursor: pointer;
 }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.tab-button {
+  padding: 8px 16px;
+  border: none;
+  background: #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.tab-button.active {
+  background: #007BFF;
+  color: #fff;
+}
+
+.tab-content {
+  display: none;
+  width: 100%;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+#sheet-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#sheet-table th, #sheet-table td {
+  border: 1px solid #ccc;
+  padding: 4px;
+  text-align: center;
+  font-size: 14px;
+}
+
+#sheet-table th {
+  background: #f0f0f0;
+}

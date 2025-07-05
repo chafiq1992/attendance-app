@@ -10,28 +10,45 @@
   <img id="logo" src="https://cdn.shopify.com/s/files/1/0573/6726/5337/files/0df2.png?v=1697554869" alt="Company Logo" />
   <h2>🕒 Employee Attendance</h2>
   <h3 id="employeeName"></h3>
-  <div id="status">Status: Not Clocked In</div>
-  <div id="datetime"></div>
 
-  <div class="section">
-    <button class="clockin" onclick="showModal('clockin')">✅ Clock In</button>
-    <button class="clockout" onclick="showModal('clockout')">🕔 Clock Out</button>
-  </div>
-  <div class="section">
-    <button class="startbreak" onclick="showModal('startbreak')">🛑 Start Break</button>
-    <button class="endbreak" onclick="showModal('endbreak')">✅ End Break</button>
-  </div>
-  <div class="section">
-    <button class="startextra" onclick="showModal('startextra')">➕ Start Extra Hours</button>
-    <button class="endextra" onclick="showModal('endextra')">🛑 End Extra Hours</button>
+  <div class="tabs">
+    <button class="tab-button active" data-tab="attendance">Attendance</button>
+    <button class="tab-button" data-tab="sheet">Sheet</button>
+    <button class="tab-button" data-tab="stats">Stats</button>
   </div>
 
-  <div id="day-log">
-    <div class="log-section" id="main-log"></div>
-    <div class="log-section" id="break-log"></div>
-    <div class="log-section" id="extra-log"></div>
+  <div id="tab-attendance" class="tab-content active">
+    <div id="status">Status: Not Clocked In</div>
+    <div id="datetime"></div>
+
+    <div class="section">
+      <button class="clockin" onclick="showModal('clockin')">✅ Clock In</button>
+      <button class="clockout" onclick="showModal('clockout')">🕔 Clock Out</button>
+    </div>
+    <div class="section">
+      <button class="startbreak" onclick="showModal('startbreak')">🛑 Start Break</button>
+      <button class="endbreak" onclick="showModal('endbreak')">✅ End Break</button>
+    </div>
+    <div class="section">
+      <button class="startextra" onclick="showModal('startextra')">➕ Start Extra Hours</button>
+      <button class="endextra" onclick="showModal('endextra')">🛑 End Extra Hours</button>
+    </div>
+
+    <div id="day-log">
+      <div class="log-section" id="main-log"></div>
+      <div class="log-section" id="break-log"></div>
+      <div class="log-section" id="extra-log"></div>
+    </div>
+    <div id="msg"></div>
   </div>
-  <div id="msg"></div>
+
+  <div id="tab-sheet" class="tab-content">
+    <div id="sheet-table"></div>
+  </div>
+
+  <div id="tab-stats" class="tab-content">
+    <div id="stats-content"></div>
+  </div>
 
   <div id="modalConfirm">
     <div class="modal-content">
