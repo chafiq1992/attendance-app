@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Attendance</title>
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <main>
+    <h1 id="title">Employee Attendance</h1>
+
+    <!-- Name input (prefilled from ?employee= query-string) -->
+    <input id="nameBox" type="text" placeholder="Employee name"/>
+
+    <!-- Old-app buttons (labels unchanged) -->
+    <div class="grid">
+      <button onclick="doAction('clockin')">Clock In</button>
+      <button onclick="doAction('clockout')">Clock Out</button>
+      <button onclick="doAction('startbreak')">Start Break</button>
+      <button onclick="doAction('endbreak')">End Break</button>
+      <button onclick="doAction('startextra')">Start Extra</button>
+      <button onclick="doAction('endextra')">End Extra</button>
+    </div>
+
+    <p id="status"></p>
+  </main>
+
+  <script src="static/script.js"></script>
+</body>
+</html>
