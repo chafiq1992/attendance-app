@@ -5,8 +5,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import config
 from config import CREDENTIALS        # for googleapiclient
-from config import gc                 # gspread client
-
+from config import gc                 # gspread client                    #  ← already builds CREDENTIALS
 
 # --------------------------------------------------------------------
 # 1.  Flask setup
@@ -16,18 +15,8 @@ server = Flask(__name__, static_folder="static", static_url_path="/static")
 # --------------------------------------------------------------------
 # 2.  Google Sheets service
 # --------------------------------------------------------------------
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-CREDS_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # path mounted in Cloud Run
-
-if not CREDS_FILE or not os.path.exists(CREDS_FILE):
-    raise RuntimeError("Service-account JSON not found. "
-                       "Mount it and set GOOGLE_APPLICATION_CREDENTIALS.")
-
-credentials = service_account.Credentials.from_service_account_file(
-    CREDS_FILE, scopes=SCOPES
-)
-sheets_service = build("sheets", "v4", credentials=CREDENTIALS)
-sheet = sheets_service.spreadsheets()
+sheets_service = build("sheets", "v4", credentials=config.CREDENTIALS)
+sheet          = sheets_service.spreadsheets()
 
 # --------------------------------------------------------------------
 # 3.  Helpers
