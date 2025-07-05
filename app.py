@@ -26,7 +26,7 @@ if not CREDS_FILE or not os.path.exists(CREDS_FILE):
 credentials = service_account.Credentials.from_service_account_file(
     CREDS_FILE, scopes=SCOPES
 )
-sheets_service = build("sheets", "v4", credentials=credentials)
+sheets_service = build("sheets", "v4", credentials=CREDENTIALS)
 sheet = sheets_service.spreadsheets()
 
 # --------------------------------------------------------------------
