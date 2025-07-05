@@ -3,8 +3,10 @@ import os
 from flask import Flask, request, send_from_directory, jsonify
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-
 import config
+from config import CREDENTIALS        # for googleapiclient
+from config import gc                 # gspread client
+
 
 # --------------------------------------------------------------------
 # 1.  Flask setup
