@@ -5,7 +5,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import config
 from config import CREDENTIALS        # for googleapiclient
-from config import gc                 # gspread client                    #  ← already builds CREDENTIALS
+from config import gc                 # gspread client
 
 # --------------------------------------------------------------------
 # 1.  Flask setup
@@ -21,50 +21,41 @@ sheet          = sheets_service.spreadsheets()
 # --------------------------------------------------------------------
 # 3.  Helpers
 # --------------------------------------------------------------------
-def excel_time(now: dt.datetime) -> float:
-    """Convert a datetime to Excel serial time (fraction of a day)."""
-    return (now.hour / 24) + (now.minute / 1440)
 
-def find_or_create_employee_row(name: str) -> int:
-    """Return row number (1-based) for the first row of the 10-row block
-       belonging to `name`.  Create the block if absent."""
+
+def ensure_employee_sheet(name: str) -> str:
+    """Return sheet/tab name for `name`, creating it from a template if needed."""
     ssid = config.GOOGLE_SHEET_ID
-    tab = config.SHEET_NAME
+    sh = gc.open_by_key(ssid)
 
-    # Read column A (names) starting from row 2
-    col_a = sheet.values().get(
-        spreadsheetId=ssid,
-        range=f"{tab}!A2:A"
-    ).execute().get("values", [])
+    try:
+        sh.worksheet(name)
+        return name
+    except Exception:
+        # Create new sheet and set up headers/labels
+        ws = sh.add_worksheet(title=name, rows="50", cols="40")
 
-    names = [r[0] for r in col_a]
-    if name in names:
-        return 2 + names.index(name)          # row where the name sits
+        # Header row: Name, 1..31
+        header = ["Name"] + [str(d) for d in range(1, 32)]
+        ws.update("A1", [header])
 
-    # Otherwise append10 new rows
-    start_row = 2 + len(names)
-    labels = [
-        name, "(Out)", "(Duration)", "(Work Outcome)",
-        "(Break Start)", "(Break End)", "(Break Outcome)",
-        "(Extra Start)", "(Extra End)", "(Extra Outcome)",
-    ]
-    writes = [
-        {"range": f"{tab}!A{start_row + i}", "values": [[label]]}
-        for i, label in enumerate(labels)
-    ]
-    sheet.values().batchUpdate(
-        spreadsheetId=ssid,
-        body={"valueInputOption": "USER_ENTERED", "data": writes}
-    ).execute()
-    return start_row
+        labels = [
+            name, "(Out)", "(Duration)", "(Work Outcome)",
+            "(Break Start)", "(Break End)", "(Break Outcome)",
+            "(Extra Start)", "(Extra End)", "(Extra Outcome)",
+        ]
+        ws.update("A2:A11", [[lbl] for lbl in labels])
+
+        return name
 
 def record_time(employee: str, action: str, day: int):
     """Write today’s time into the proper cell."""
     now = dt.datetime.now(dt.timezone.utc).astimezone(
         dt.timezone(dt.timedelta(hours=0)))  # Africa/Casablanca == UTC+0 in July
-    serial = excel_time(now)
+    time_str = now.strftime('%H:%M')
 
-    base_row = find_or_create_employee_row(employee)
+    ensure_employee_sheet(employee)
+    base_row = 2
     col = day + 1   # Sheet column = day 1 → column B
 
     mapping = {
@@ -82,11 +73,11 @@ def record_time(employee: str, action: str, day: int):
 
     sheet.values().update(
         spreadsheetId=config.GOOGLE_SHEET_ID,
-        range=f"{config.SHEET_NAME}!{target_row}:{target_row}",
+        range=f"{employee}!{target_row}:{target_row}",
         valueInputOption="USER_ENTERED",
-        body={"values": [[""] * (col - 1) + [serial]]},
+        body={"values": [[""] * (col - 1) + [time_str]]},
     ).execute()
-    return True, f"{action.upper()} recorded @ {now.strftime('%H:%M')}"
+    return True, f"{action.upper()} recorded @ {time_str}"
 
 # --------------------------------------------------------------------
 # 4.  Routes
