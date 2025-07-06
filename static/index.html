@@ -15,6 +15,7 @@
     <button class="tab-button active" data-tab="attendance">Attendance</button>
     <button class="tab-button" data-tab="sheet">Sheet</button>
     <button class="tab-button" data-tab="stats">Stats</button>
+    <button class="tab-button" data-tab="payments">Payments</button>
     <button class="tab-button" data-tab="performance">Performance</button>
   </div>
 
@@ -51,6 +52,10 @@
   </div>
 
   <div id="tab-stats" class="tab-content">
+    <div id="stats-summary"></div>
+  </div>
+
+  <div id="tab-payments" class="tab-content">
     <div id="period-cards"></div>
     <div class="stats-controls">
       <button class="stats-btn" onclick="recordOrder()">Add Order</button>
