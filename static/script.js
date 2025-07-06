@@ -249,7 +249,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(div => {
     div.classList.toggle('active', div.id === 'tab-' + tab);
   });
-  if ((tab === 'sheet' || tab === 'stats') && !sheetLoaded) {
+  if ((tab === 'sheet' || tab === 'payments' || tab === 'performance') && !sheetLoaded) {
     fetchSheetData();
   }
 }
@@ -267,7 +267,8 @@ function fetchSheetData() {
     .then(data => {
       sheetLoaded = true;
       renderSheetTable(data.values || []);
-      renderStats(data.values || []);
+      renderPayments(data.values || []);
+      renderPerformance(data.values || []);
     })
     .catch(err => {
       sheetLoaded = false;
@@ -329,7 +330,7 @@ function parseTime(str) {
   return parts[0] * 60 + parts[1];
 }
 
-function renderStats(values) {
+function renderPayments(values) {
   if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
     document.getElementById('period-cards').innerHTML = '';
     document.getElementById('payout-history').innerHTML = '';
@@ -417,7 +418,7 @@ function renderStats(values) {
     }
   }
 
-  // No summary section at top of stats tab
+  // No summary section at top of payments tab
 
   const currentCards = [];
   const archivedCards = [];
@@ -448,6 +449,65 @@ function renderStats(values) {
   document.getElementById('payout-history').innerHTML = histHtml;
   document.getElementById('order-history').innerText = 'Orders: ' + totalOrdersList.join(', ');
   document.getElementById('cash-summary').innerText = 'Total cash: ' + totalCash;
+}
+
+function renderPerformance(values) {
+  const container = document.getElementById('tab-performance');
+  if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let headerIdx = 0;
+  if ((values[0][0] || '').toLowerCase() !== 'name') {
+    headerIdx = 1;
+  }
+  const dataStart = headerIdx + 1;
+  const lastDay = (values[headerIdx] || []).length - 1;
+
+  const summary = { worked: 0, minutes: 0, extra: 0, orders: [] };
+
+  for (let day = 1; day <= lastDay; day++) {
+    const inM = parseTime(values[dataStart]?.[day]);
+    const outM = parseTime(values[dataStart + 1]?.[day]);
+    if (inM != null && outM != null && outM > inM) {
+      const main = outM - inM;
+      let breakMin = 0;
+      const bStart = parseTime(values[dataStart + 4]?.[day]);
+      const bEnd = parseTime(values[dataStart + 5]?.[day]);
+      if (bStart != null && bEnd != null && bEnd > bStart) {
+        breakMin = bEnd - bStart;
+      }
+
+      let extraMin = 0;
+      const eStart = parseTime(values[dataStart + 7]?.[day]);
+      const eEnd = parseTime(values[dataStart + 8]?.[day]);
+      if (eStart != null && eEnd != null && eEnd > eStart) {
+        extraMin = eEnd - eStart;
+      }
+
+      const net = main - breakMin + extraMin;
+      if (net >= 450) {
+        summary.worked += 1;
+      }
+      summary.minutes += net;
+
+      const extraCalc = Math.max((main - breakMin) - 500, 0) + extraMin;
+      summary.extra += extraCalc;
+    }
+
+    const ordersStr = (values[dataStart + 11]?.[day] || '').trim();
+    if (ordersStr) {
+      const arr = ordersStr.split(',').map(s => s.trim()).filter(Boolean);
+      summary.orders.push(...arr);
+    }
+  }
+
+  container.innerHTML =
+    `<div>Worked days: ${summary.worked}</div>` +
+    `<div>Total hours: ${formatDuration(summary.minutes)}</div>` +
+    `<div>Extra hours: ${formatDuration(summary.extra)}</div>` +
+    `<div>Orders: ${summary.orders.join(', ')}</div>`;
 }
 
 function recordPayout() {
