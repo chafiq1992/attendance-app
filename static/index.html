@@ -49,6 +49,14 @@
   <div id="tab-stats" class="tab-content">
     <div id="stats-content"></div>
     <div id="period-cards"></div>
+    <div id="order-section">
+      <input type="number" id="orderInput" placeholder="Order number" />
+      <button onclick="recordOrder()">Add Order</button>
+    </div>
+    <div id="cash-section">
+      <input type="number" id="cashAmount" placeholder="Cash amount" />
+      <button onclick="recordCash()">Add Cash</button>
+    </div>
     <div id="advance-section">
       <input type="number" id="advanceAmount" placeholder="Advance amount" />
       <button onclick="recordAdvance()">Record Advance</button>
@@ -58,14 +66,14 @@
       <button onclick="recordPayout()">Record Payout</button>
     </div>
     <div id="payout-history"></div>
+    <div id="order-history"></div>
+    <div id="cash-summary"></div>
   </div>
 
   <div id="modalConfirm">
     <div class="modal-content">
       <p id="modalMsg"></p>
       <div class="modal-time" id="modalTime"></div>
-      <input type="number" id="inputCash" placeholder="Cash amount" style="display:none" />
-      <input type="number" id="inputOrders" placeholder="Order count" style="display:none" />
       <button onclick="confirmAction()">OK</button>
     </div>
   </div>

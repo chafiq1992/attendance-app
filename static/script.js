@@ -2,7 +2,6 @@
 var employeeName = new URLSearchParams(window.location.search).get('employee') || '';
 let breakStartTime = null, extraStartTime = null, mainStartTime = null;
 let pendingAction = null;
-let cashInput, orderInput;
 
 // ==== Persistent log state for today ====
 let todayLogs = loadTodayLogs();
@@ -58,8 +57,6 @@ window.onload = function() {
     return;
   }
   document.getElementById('employeeName').innerText = '👤 ' + employeeName;
-  cashInput = document.getElementById('inputCash');
-  orderInput = document.getElementById('inputOrders');
   startClock();
   renderDayLog();
 };
@@ -107,23 +104,13 @@ function showModal(action) {
   let humanTime = formatDuration(totalMin);
   document.getElementById('modalMsg').innerText = msg;
   document.getElementById('modalTime').innerText = `Total running time for this part: ${humanTime}`;
-  if (action === 'clockout') {
-    cashInput.value = '';
-    orderInput.value = '';
-    cashInput.style.display = 'block';
-    orderInput.style.display = 'block';
-  } else {
-    cashInput.style.display = 'none';
-    orderInput.style.display = 'none';
-  }
+  
   document.getElementById('modalConfirm').style.display = 'flex';
   pendingAction = action;
 }
 
 function confirmAction() {
   document.getElementById('modalConfirm').style.display = 'none';
-  cashInput.style.display = 'none';
-  orderInput.style.display = 'none';
   submitAttendance(pendingAction);
   pendingAction = null;
 }
@@ -168,10 +155,6 @@ function submitAttendance(action) {
   renderDayLog();
 
   const payload = { employee: employeeName, action };
-  if (action === 'clockout') {
-    if (cashInput.value) payload.cash = cashInput.value;
-    if (orderInput.value) payload.orders = orderInput.value;
-  }
 
   fetch('/attendance', {
     method: 'POST',
@@ -327,9 +310,10 @@ function renderStats(values) {
     return;
   }
   let workedDays = 0, totalMin = 0;
-  let totalCash = 0, totalOrders = 0, totalAdvance = 0;
+  let totalCash = 0, totalAdvance = 0;
+  let totalOrdersList = [];
   let periods = [];
-  let current = {start: 1, days: 0, minutes: 0, cash: 0, orders: 0, advance: 0, payout: null};
+  let current = {start: 1, days: 0, minutes: 0, cash: 0, orders: [], advance: 0, payout: null};
   let cols = values[0].length;
   for (let c = 1; c < cols; c++) {
     let inM = parseTime(values[1]?.[c]);
@@ -356,10 +340,11 @@ function renderStats(values) {
       totalCash += cashVal;
       current.cash += cashVal;
     }
-    let orderVal = parseInt(values[11]?.[c] || '0', 10);
-    if (!isNaN(orderVal)) {
-      totalOrders += orderVal;
-      current.orders += orderVal;
+    let orderStr = (values[11]?.[c] || '').trim();
+    if (orderStr) {
+      let parts = orderStr.split(',').map(s => s.trim()).filter(Boolean);
+      totalOrdersList.push(...parts);
+      current.orders.push(...parts);
     }
     let advanceVal = parseFloat(values[13]?.[c] || '0');
     if (!isNaN(advanceVal)) {
@@ -371,7 +356,7 @@ function renderStats(values) {
       current.payout = payoutVal;
       current.end = c;
       periods.push(current);
-      current = {start: c + 1, days: 0, minutes: 0, cash: 0, orders: 0, advance: 0, payout: null};
+      current = {start: c + 1, days: 0, minutes: 0, cash: 0, orders: [], advance: 0, payout: null};
     }
   }
   current.end = cols - 1;
@@ -381,7 +366,6 @@ function renderStats(values) {
     `<p>Worked days: <strong>${workedDays}</strong></p>` +
     `<p>Total hours: <strong>${formatDuration(totalMin)}</strong></p>` +
     `<p>Total cash: <strong>${totalCash}</strong></p>` +
-    `<p>Total orders: <strong>${totalOrders}</strong></p>` +
     `<p>Total advance: <strong>${totalAdvance}</strong></p>`;
 
   let cardsHtml = '';
@@ -392,7 +376,7 @@ function renderStats(values) {
       `<div>Days: ${p.days}</div>` +
       `<div>Hours: ${formatDuration(p.minutes)}</div>` +
       `<div>Cash: ${p.cash}</div>` +
-      `<div>Orders: ${p.orders}</div>` +
+      `<div>Orders: ${p.orders.join(', ')}</div>` +
       `<div>Advance: ${p.advance}</div>` +
       (p.payout ? `<div>Payout: ${p.payout}</div>` : '') +
       `</div>`;
@@ -409,6 +393,8 @@ function renderStats(values) {
     histHtml += '</tbody></table>';
   }
   document.getElementById('payout-history').innerHTML = histHtml;
+  document.getElementById('order-history').innerText = 'Orders: ' + totalOrdersList.join(', ');
+  document.getElementById('cash-summary').innerText = 'Total cash: ' + totalCash;
 }
 
 function recordPayout() {
@@ -434,6 +420,44 @@ function recordAdvance() {
   const amt = document.getElementById('advanceAmount').value;
   if (!amt) return;
   fetch('/advance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ employee: employeeName, amount: amt })
+  })
+  .then(r => r.json())
+  .then(res => {
+    document.getElementById('msg').innerText = res.msg || 'OK';
+    sheetLoaded = false;
+    fetchSheetData();
+  })
+  .catch(err => {
+    document.getElementById('msg').innerText = 'Error: ' + err.message;
+  });
+}
+
+function recordOrder() {
+  const num = document.getElementById('orderInput').value;
+  if (!num) return;
+  fetch('/order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ employee: employeeName, number: num })
+  })
+  .then(r => r.json())
+  .then(res => {
+    document.getElementById('msg').innerText = res.msg || 'OK';
+    sheetLoaded = false;
+    fetchSheetData();
+  })
+  .catch(err => {
+    document.getElementById('msg').innerText = 'Error: ' + err.message;
+  });
+}
+
+function recordCash() {
+  const amt = document.getElementById('cashAmount').value;
+  if (!amt) return;
+  fetch('/cash', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ employee: employeeName, amount: amt })
