@@ -58,10 +58,10 @@ def ensure_current_month_table(name: str) -> None:
     now = dt.datetime.now(dt.timezone.utc).astimezone(dt.timezone(dt.timedelta(hours=0)))
     current_label = now.strftime("%B %Y")
 
-    first_cell = ws.acell("A1").value or ""
+    first_cell = (ws.acell("A1").value or "").strip()
     if first_cell != current_label:
         # if the sheet was created with the old format (no month label), add one
-        if first_cell.strip().lower() == "name":
+        if first_cell.lower() == "name":
             prev_month = (now - dt.timedelta(days=1)).strftime("%B %Y")
             ws.insert_rows([[]], row=1)
             ws.update("A1", prev_month)
