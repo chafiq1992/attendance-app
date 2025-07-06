@@ -255,17 +255,38 @@ function renderSheetTable(values) {
     document.getElementById('sheet-table').innerText = 'No data';
     return;
   }
-  let html = '<table><thead><tr>';
-  values[0].forEach(h => { html += '<th>' + (h || '') + '</th>'; });
-  html += '</tr></thead><tbody>';
-  for (let r = 1; r < values.length; r++) {
-    html += '<tr>';
-    for (let c = 0; c < values[r].length; c++) {
-      html += '<td>' + (values[r][c] || '') + '</td>';
+
+  let html = '';
+  let r = 0;
+  while (r < values.length) {
+    let firstCell = (values[r][0] || '').toLowerCase();
+    let hasMonth = firstCell && firstCell !== 'name';
+    let headerRow = hasMonth ? values[r + 1] : values[r];
+    if (hasMonth) {
+      html += `<div class="sheet-month"><h4>${values[r][0]}</h4>`;
+      r += 1;
+    } else {
+      html += '<div class="sheet-month">';
     }
-    html += '</tr>';
+
+    html += '<table><thead><tr>';
+    headerRow.forEach(h => { html += '<th>' + (h || '') + '</th>'; });
+    html += '</tr></thead><tbody>';
+
+    let rowsPerMonth = hasMonth ? 11 : values.length - r;
+    for (let i = 1; i < rowsPerMonth; i++) {
+      let row = values[r + i];
+      if (!row) break;
+      html += '<tr>';
+      for (let c = 0; c < headerRow.length; c++) {
+        html += '<td>' + (row[c] || '') + '</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+    r += rowsPerMonth;
   }
-  html += '</tbody></table>';
+
   document.getElementById('sheet-table').innerHTML = html;
 }
 
