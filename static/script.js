@@ -368,20 +368,46 @@ function renderStats(values) {
     `<p>Total cash: <strong>${totalCash}</strong></p>` +
     `<p>Total advance: <strong>${totalAdvance}</strong></p>`;
 
-  let cardsHtml = '';
-  periods.forEach((p, idx) => {
-    let cls = p.payout ? 'archived' : 'current';
-    cardsHtml += `<div class="period-card ${cls}">` +
-      `<div class="range">${p.start} - ${p.end}</div>` +
-      `<div>Days: ${p.days}</div>` +
-      `<div>Hours: ${formatDuration(p.minutes)}</div>` +
-      `<div>Cash: ${p.cash}</div>` +
-      `<div>Orders: ${p.orders.join(', ')}</div>` +
-      `<div>Advance: ${p.advance}</div>` +
-      (p.payout ? `<div>Payout: ${p.payout}</div>` : '') +
-      `</div>`;
+  const cardsContainer = document.getElementById('period-cards');
+  cardsContainer.innerHTML = '';
+  periods.forEach((p) => {
+    const cls = p.payout ? 'archived' : 'current';
+    const card = document.createElement('div');
+    card.className = `period-card ${cls}`;
+
+    const rangeDiv = document.createElement('div');
+    rangeDiv.className = 'range';
+    rangeDiv.textContent = `${p.start} - ${p.end}`;
+    card.appendChild(rangeDiv);
+
+    const daysDiv = document.createElement('div');
+    daysDiv.textContent = `Days: ${p.days}`;
+    card.appendChild(daysDiv);
+
+    const hoursDiv = document.createElement('div');
+    hoursDiv.textContent = `Hours: ${formatDuration(p.minutes)}`;
+    card.appendChild(hoursDiv);
+
+    const cashDiv = document.createElement('div');
+    cashDiv.textContent = `Cash: ${p.cash}`;
+    card.appendChild(cashDiv);
+
+    const ordersDiv = document.createElement('div');
+    ordersDiv.textContent = `Orders: ${p.orders.join(', ')}`;
+    card.appendChild(ordersDiv);
+
+    const advDiv = document.createElement('div');
+    advDiv.textContent = `Advance: ${p.advance}`;
+    card.appendChild(advDiv);
+
+    if (p.payout) {
+      const payoutDiv = document.createElement('div');
+      payoutDiv.textContent = `Payout: ${p.payout}`;
+      card.appendChild(payoutDiv);
+    }
+
+    cardsContainer.appendChild(card);
   });
-  document.getElementById('period-cards').innerHTML = cardsHtml;
 
   let histHtml = '';
   let paid = periods.filter(p => p.payout);
