@@ -46,9 +46,9 @@ def ensure_employee_sheet(name: str) -> str:
             name, "(Out)", "(Duration)", "(Work Outcome)",
             "(Break Start)", "(Break End)", "(Break Outcome)",
             "(Extra Start)", "(Extra End)", "(Extra Outcome)",
-            "(Cash Amount)", "(Order Count)", "(Payout)",
+            "(Cash Amount)", "(Order Count)", "(Payout)", "(Advance)",
         ]
-        ws.update("A2:A14", [[lbl] for lbl in labels])
+        ws.update("A2:A15", [[lbl] for lbl in labels])
 
         return name
 
@@ -87,6 +87,7 @@ def ensure_current_month_table(name: str) -> None:
                 "(Cash Amount)",
                 "(Order Count)",
                 "(Payout)",
+                "(Advance)",
             ]
 
             rows = [[current_label], header] + [[lbl] for lbl in labels]
@@ -156,6 +157,7 @@ def record_value(employee: str, label: str, day: int, value: str):
         "cash": 9,
         "orders": 10,
         "payout": 11,
+        "advance": 12,
     }
     if label not in mapping:
         return False, f"Unknown label «{label}»"
@@ -210,6 +212,19 @@ def payout():
     today = dt.datetime.now(dt.timezone.utc).astimezone().day
     record_value(employee, "payout", today, amount)
     return jsonify(ok=True, msg="Payout recorded")
+
+
+@server.route("/advance", methods=["POST"])
+def advance():
+    data = request.json or {}
+    employee = data.get("employee", "").strip()
+    amount   = data.get("amount")
+    if not employee or amount is None:
+        return {"ok": False, "msg": "employee & amount required"}, 400
+
+    today = dt.datetime.now(dt.timezone.utc).astimezone().day
+    record_value(employee, "advance", today, amount)
+    return jsonify(ok=True, msg="Advance recorded")
 
 @server.route("/sheet_data")
 def sheet_data_route():
