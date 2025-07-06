@@ -1,0 +1,6 @@
+.git
+__pycache__/
+node_modules/
+*.py[cod]
+.env
+service_account.json
