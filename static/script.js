@@ -267,7 +267,7 @@ function fetchSheetData() {
     .then(data => {
       sheetLoaded = true;
       renderSheetTable(data.values || []);
-      renderStats(data.values || []);
+      renderPayments(data.values || []);
     })
     .catch(err => {
       sheetLoaded = false;
@@ -329,7 +329,7 @@ function parseTime(str) {
   return parts[0] * 60 + parts[1];
 }
 
-function renderStats(values) {
+function renderPayments(values) {
   if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
     document.getElementById('period-cards').innerHTML = '';
     document.getElementById('payout-history').innerHTML = '';
