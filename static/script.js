@@ -249,7 +249,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(div => {
     div.classList.toggle('active', div.id === 'tab-' + tab);
   });
-  if ((tab === 'sheet' || tab === 'stats') && !sheetLoaded) {
+  if ((tab === 'sheet' || tab === 'stats' || tab === 'performance') && !sheetLoaded) {
     fetchSheetData();
   }
 }
@@ -268,6 +268,7 @@ function fetchSheetData() {
       sheetLoaded = true;
       renderSheetTable(data.values || []);
       renderPayments(data.values || []);
+      renderPerformance(data.values || []);
     })
     .catch(err => {
       sheetLoaded = false;
@@ -521,4 +522,64 @@ function recordCash() {
   .catch(err => {
     document.getElementById('msg').innerText = 'Error: ' + err.message;
   });
+}
+
+function renderPerformance(values) {
+  const scoreEl = document.getElementById('performance-score');
+  if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
+    scoreEl.innerText = 'No data';
+    scoreEl.className = '';
+    return;
+  }
+
+  let headerIdx = 0;
+  if ((values[0][0] || '').toLowerCase() !== 'name') {
+    headerIdx = 1;
+  }
+  const dataStart = headerIdx + 1;
+  const lastDay = (values[headerIdx] || []).length - 1;
+
+  const inRow = values[dataStart] || [];
+  const outRow = values[dataStart + 1] || [];
+
+  let worked = 0;
+  let compliant = 0;
+
+  const earlyLimit = 9 * 60 + 5;   // 09:05
+  const lateLimit = 18 * 60;        // 18:00
+
+  for (let day = 1; day <= lastDay; day++) {
+    const inM = parseTime(inRow[day]);
+    const outM = parseTime(outRow[day]);
+    if (inM != null && outM != null && outM > inM) {
+      // Determine if this is a worked day similar to renderStats (>=7.5h net)
+      let breakMin = 0;
+      const bStart = parseTime(values[dataStart + 4]?.[day]);
+      const bEnd = parseTime(values[dataStart + 5]?.[day]);
+      if (bStart != null && bEnd != null && bEnd > bStart) {
+        breakMin = bEnd - bStart;
+      }
+      let extraMin = 0;
+      const eStart = parseTime(values[dataStart + 7]?.[day]);
+      const eEnd = parseTime(values[dataStart + 8]?.[day]);
+      if (eStart != null && eEnd != null && eEnd > eStart) {
+        extraMin = eEnd - eStart;
+      }
+      const net = (outM - inM) - breakMin + extraMin;
+      if (net >= 450) {
+        worked += 1;
+        if (inM < earlyLimit && outM >= lateLimit) {
+          compliant += 1;
+        }
+      }
+    }
+  }
+
+  let score = 0;
+  if (worked > 0) {
+    score = Math.round((compliant / worked) * 10 * 10) / 10;
+  }
+
+  scoreEl.innerText = 'Performance Score: ' + score + '/10';
+  scoreEl.className = score >= 9 ? 'good' : score <= 5 ? 'bad' : '';
 }

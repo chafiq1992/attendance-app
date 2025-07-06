@@ -230,3 +230,13 @@ h2 {
 #payout-history tr:nth-child(even) {
   background-color: #f9f9f9;
 }
+
+#performance-score {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+#performance-score.good { color: #4CAF50; }
+#performance-score.bad { color: #f44336; }
