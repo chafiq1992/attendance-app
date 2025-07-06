@@ -5,6 +5,8 @@ import gspread
 
 # ① Non-secret settings
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
+if not GOOGLE_SHEET_ID:
+    raise RuntimeError("❌  GOOGLE_SHEET_ID env-var not set!")
 SHEET_NAME      = "Attendance"
 TIMEZONE        = "Africa/Casablanca"
 
