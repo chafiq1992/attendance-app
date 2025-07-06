@@ -149,3 +149,11 @@ h2 {
 #sheet-table th {
   background: #f0f0f0;
 }
+
+.sheet-month {
+  margin-bottom: 30px;
+}
+
+.sheet-month h4 {
+  margin: 10px 0;
+}

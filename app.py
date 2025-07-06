@@ -48,6 +48,45 @@ def ensure_employee_sheet(name: str) -> str:
 
         return name
 
+
+def ensure_current_month_table(name: str) -> None:
+    """Ensure that the given sheet has a table for the current month at top."""
+    ssid = config.GOOGLE_SHEET_ID
+    sh = gc.open_by_key(ssid)
+    ws = sh.worksheet(name)
+
+    now = dt.datetime.now(dt.timezone.utc).astimezone(dt.timezone(dt.timedelta(hours=0)))
+    current_label = now.strftime("%B %Y")
+
+    first_cell = ws.acell("A1").value or ""
+    if first_cell != current_label:
+        # if the sheet was created with the old format (no month label), add one
+        if first_cell.strip().lower() == "name":
+            prev_month = (now - dt.timedelta(days=1)).strftime("%B %Y")
+            ws.insert_rows([[]], row=1)
+            ws.update("A1", prev_month)
+
+        # insert blank rows for new month table at top
+        ws.insert_rows([[] for _ in range(12)], row=1)
+
+        # Header row and labels for new month table
+        ws.update("A1", current_label)
+        header = ["Name"] + [str(d) for d in range(1, 32)]
+        ws.update("A2", [header])
+        labels = [
+            name,
+            "(Out)",
+            "(Duration)",
+            "(Work Outcome)",
+            "(Break Start)",
+            "(Break End)",
+            "(Break Outcome)",
+            "(Extra Start)",
+            "(Extra End)",
+            "(Extra Outcome)",
+        ]
+        ws.update("A3:A12", [[lbl] for lbl in labels])
+
 def record_time(employee: str, action: str, day: int):
     """Write today’s time into the proper cell."""
     now = dt.datetime.now(dt.timezone.utc).astimezone(
@@ -55,7 +94,8 @@ def record_time(employee: str, action: str, day: int):
     time_str = now.strftime('%H:%M')
 
     ensure_employee_sheet(employee)
-    base_row = 2
+    ensure_current_month_table(employee)
+    base_row = 3
     col = day + 1   # Sheet column = day 1 → column B
 
     mapping = {
@@ -109,7 +149,7 @@ def sheet_data_route():
     ensure_employee_sheet(employee)
     result = sheet.values().get(
         spreadsheetId=config.GOOGLE_SHEET_ID,
-        range=f"{employee}!A1:AG11",
+        range=f"{employee}!A1:AG",
     ).execute()
     values = result.get("values", [])
     return jsonify(values=values)
