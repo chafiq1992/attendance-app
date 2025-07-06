@@ -331,7 +331,6 @@ function parseTime(str) {
 
 function renderStats(values) {
   if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
-    document.getElementById('stats-content').innerText = 'No data';
     document.getElementById('period-cards').innerHTML = '';
     document.getElementById('payout-history').innerHTML = '';
     document.getElementById('order-history').innerText = '';
@@ -418,23 +417,14 @@ function renderStats(values) {
     }
   }
 
-  const summaryHtml =
-    `<div class="stats-summary">` +
-    `<h3>Summary</h3>` +
-    `<p><strong>Worked days:</strong> ${summary.worked}</p>` +
-    `<p><strong>Total hours:</strong> ${formatDuration(summary.minutes)}</p>` +
-    `<p><strong>Extra hours:</strong> ${formatDuration(summary.extra)}</p>` +
-    `<p><strong>Cash added:</strong> ${summary.cashAdd}</p>` +
-    `<p><strong>Cash taken:</strong> ${summary.cashTake}</p>` +
-    `<p><strong>Orders:</strong> ${summary.orders.join(', ')}</p>` +
-    `</div>`;
-  document.getElementById('stats-content').innerHTML = summaryHtml;
+  // No summary section at top of stats tab
 
   const currentCards = [];
   const archivedCards = [];
   periods.forEach(p => {
     const card = `<div class="period-card ${p.payout ? 'archived' : 'current'}">` +
       `<div class="range">${p.start} – ${p.end}</div>` +
+      `<div>Worked days: ${p.worked}</div>` +
       `<div>Extra hours: ${formatDuration(p.extra)}</div>` +
       `<div>Cash added: ${p.cashAdd}</div>` +
       `<div>Cash taken: ${p.cashTake}</div>` +
@@ -461,7 +451,7 @@ function renderStats(values) {
 }
 
 function recordPayout() {
-  const amt = document.getElementById('payoutAmount').value;
+  const amt = prompt('Enter payout amount:');
   if (!amt) return;
   fetch('/payout', {
     method: 'POST',
@@ -480,7 +470,7 @@ function recordPayout() {
 }
 
 function recordOrder() {
-  const num = document.getElementById('orderInput').value;
+  const num = prompt('Enter order number:');
   if (!num) return;
   fetch('/order', {
     method: 'POST',
@@ -499,7 +489,7 @@ function recordOrder() {
 }
 
 function recordCash() {
-  const amt = document.getElementById('cashAmount').value;
+  const amt = prompt('Enter avance amount:');
   if (!amt) return;
   fetch('/cash', {
     method: 'POST',

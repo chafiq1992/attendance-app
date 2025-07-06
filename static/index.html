@@ -50,21 +50,11 @@
   </div>
 
   <div id="tab-stats" class="tab-content">
-    <div id="stats-content"></div>
     <div id="period-cards"></div>
     <div class="stats-controls">
-      <div id="order-section">
-        <input type="number" id="orderInput" placeholder="Order number" />
-        <button class="stats-btn" onclick="recordOrder()">Add Order</button>
-      </div>
-      <div id="cash-section">
-        <input type="number" id="cashAmount" placeholder="Cash amount" />
-        <button class="stats-btn" onclick="recordCash()">Add Cash</button>
-      </div>
-      <div id="payout-section">
-        <input type="number" id="payoutAmount" placeholder="Payout amount" />
-        <button class="stats-btn" onclick="recordPayout()">Record Payout</button>
-      </div>
+      <button class="stats-btn" onclick="recordOrder()">Add Order</button>
+      <button class="stats-btn" onclick="recordCash()">Avance</button>
+      <button class="stats-btn" onclick="recordPayout()">Payment 15 jours</button>
     </div>
     <div id="payout-history"></div>
     <div id="order-history"></div>

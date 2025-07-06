@@ -51,7 +51,7 @@ def ensure_employee_sheet(name: str) -> str:
             name, "(Out)", "(Duration)", "(Work Outcome)",
             "(Break Start)", "(Break End)", "(Break Outcome)",
             "(Extra Start)", "(Extra End)", "(Extra Outcome)",
-            "(Cash Amount)", "(Order Count)", "(Payout)", "(Advance)",
+            "(Avance)", "(Order Count)", "(Payment 15 jours)", "(Advance)",
         ]
         ws.update("A2:A15", [[lbl] for lbl in labels])
 
@@ -89,9 +89,9 @@ def ensure_current_month_table(name: str) -> None:
                 "(Extra Start)",
                 "(Extra End)",
                 "(Extra Outcome)",
-                "(Cash Amount)",
+                "(Avance)",
                 "(Order Count)",
-                "(Payout)",
+                "(Payment 15 jours)",
                 "(Advance)",
             ]
 

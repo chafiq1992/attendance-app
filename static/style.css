@@ -164,32 +164,6 @@ h2 {
   margin: 10px 0;
 }
 
-#payout-section {
-  margin-top: 20px;
-}
-#payout-section input {
-  padding: 6px;
-  margin-right: 8px;
-}
-
-#order-section,
-#cash-section,
-#payout-section {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 90%;
-  max-width: 500px;
-  padding: 10px 0;
-}
-
-#order-section input,
-#cash-section input,
-#payout-section input {
-  padding: 6px;
-  margin-right: 8px;
-  flex: 1;
-}
 
 #period-cards {
   display: flex;
@@ -201,8 +175,8 @@ h2 {
 .stats-controls {
   width: 90%;
   max-width: 500px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-top: 20px;
 }
@@ -215,23 +189,7 @@ h2 {
   border-radius: 6px;
   cursor: pointer;
   font-size: 16px;
-}
-.stats-summary {
-  width: 90%;
-  max-width: 500px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px #0002;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-}
-.stats-summary h3 {
-  margin-top: 0;
-  margin-bottom: 8px;
-  color: #007BFF;
-}
-.stats-summary p {
-  margin: 4px 0;
+  width: 100%;
 }
 .period-card {
   display: flex;
