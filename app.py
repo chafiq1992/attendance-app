@@ -1,11 +1,15 @@
 import datetime as dt
 import os
+import logging
 from flask import Flask, request, send_from_directory, jsonify
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import config
 from config import CREDENTIALS        # for googleapiclient
 from config import gc                 # gspread client
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------
 # 1.  Flask setup
@@ -60,32 +64,39 @@ def ensure_current_month_table(name: str) -> None:
 
     first_cell = (ws.acell("A1").value or "").strip()
     if first_cell != current_label:
-        # if the sheet was created with the old format (no month label), add one
-        if first_cell.lower() == "name":
-            prev_month = (now - dt.timedelta(days=1)).strftime("%B %Y")
-            ws.insert_rows([[]], row=1)
-            ws.update("A1", prev_month)
+        inserted_rows = 0
+        try:
+            if first_cell.lower() == "name":
+                prev_month = (now - dt.timedelta(days=1)).strftime("%B %Y")
+                ws.insert_row([], index=1)
+                inserted_rows += 1
+                ws.update("A1", prev_month)
 
-        # insert blank rows for new month table at top
-        ws.insert_rows([[] for _ in range(12)], row=1)
+            header = ["Name"] + [str(d) for d in range(1, 32)]
+            labels = [
+                name,
+                "(Out)",
+                "(Duration)",
+                "(Work Outcome)",
+                "(Break Start)",
+                "(Break End)",
+                "(Break Outcome)",
+                "(Extra Start)",
+                "(Extra End)",
+                "(Extra Outcome)",
+            ]
 
-        # Header row and labels for new month table
-        ws.update("A1", current_label)
-        header = ["Name"] + [str(d) for d in range(1, 32)]
-        ws.update("A2", [header])
-        labels = [
-            name,
-            "(Out)",
-            "(Duration)",
-            "(Work Outcome)",
-            "(Break Start)",
-            "(Break End)",
-            "(Break Outcome)",
-            "(Extra Start)",
-            "(Extra End)",
-            "(Extra Outcome)",
-        ]
-        ws.update("A3:A12", [[lbl] for lbl in labels])
+            rows = [[current_label], header] + [[lbl] for lbl in labels]
+            ws.insert_rows(rows, row=1)
+            inserted_rows += len(rows)
+        except Exception as exc:
+            logger.error("Failed creating current month table for %s: %s", name, exc)
+            if inserted_rows:
+                try:
+                    ws.delete_rows(1, inserted_rows)
+                except Exception as cleanup_exc:
+                    logger.error("Cleanup of failed table setup also failed: %s", cleanup_exc)
+            raise
 
 def record_time(employee: str, action: str, day: int):
     """Write today’s time into the proper cell."""
