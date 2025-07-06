@@ -159,10 +159,10 @@ def record_value(employee: str, label: str, day: int, value: str):
     base_row = 3
     col = day + 1
     mapping = {
-        "cash": 9,
-        "orders": 10,
-        "payout": 11,
-        "advance": 12,
+        "cash": 10,
+        "orders": 11,
+        "payout": 12,
+        "advance": 13,
     }
     if label not in mapping:
         return False, f"Unknown label «{label}»"
@@ -239,7 +239,7 @@ def cash():
     ensure_current_month_table(employee)
     base_row = 3
     col = today + 1
-    row = base_row + 9  # cash row offset
+    row = base_row + 10  # cash row offset
     cell = f"{col_to_letter(col)}{row}"
 
     result = sheet.values().get(
@@ -277,7 +277,7 @@ def order():
     ensure_current_month_table(employee)
     base_row = 3
     col = today + 1
-    row = base_row + 10  # orders row offset
+    row = base_row + 11  # orders row offset
     cell = f"{col_to_letter(col)}{row}"
 
     result = sheet.values().get(
@@ -285,7 +285,7 @@ def order():
         range=f"{employee}!{cell}"
     ).execute()
     existing = result.get("values", [[""]])[0][0] if result.get("values") else ""
-    new_val = f"{existing},{number}" if existing else number
+    new_val = f"{existing}\n{number}" if existing else number
 
     sheet.values().update(
         spreadsheetId=config.GOOGLE_SHEET_ID,
