@@ -14,8 +14,12 @@ function getTodayKey() {
   return now.getFullYear() + '-' + mm + '-' + dd;
 }
 
+function storageKey() {
+  return 'attendanceLog_' + encodeURIComponent(employeeName) + '_' + getTodayKey();
+}
+
 function loadTodayLogs() {
-  let key = 'attendanceLog_' + getTodayKey();
+  let key = storageKey();
   let raw = localStorage.getItem(key);
   if (raw) {
     let logs = JSON.parse(raw);
@@ -28,7 +32,7 @@ function loadTodayLogs() {
 }
 
 function saveTodayLogs() {
-  let key = 'attendanceLog_' + getTodayKey();
+  let key = storageKey();
   localStorage.setItem(key, JSON.stringify(todayLogs));
 }
 
