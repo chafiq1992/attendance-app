@@ -277,7 +277,7 @@ function fetchSheetData() {
 }
 
 function renderSheetTable(values) {
-  if (!values.length) {
+  if (!Array.isArray(values) || !values.length) {
     document.getElementById('sheet-table').innerText = 'No data';
     return;
   }
@@ -285,9 +285,15 @@ function renderSheetTable(values) {
   let html = '';
   let r = 0;
   while (r < values.length) {
-    let firstCell = (values[r][0] || '').toLowerCase();
+    const firstRow = values[r] || [];
+    let firstCell = (firstRow[0] || '').toLowerCase();
     let hasMonth = firstCell && firstCell !== 'name';
-    let headerRow = hasMonth ? values[r + 1] : values[r];
+    let headerIndex = hasMonth ? r + 1 : r;
+    let headerRow = values[headerIndex];
+    if (!Array.isArray(headerRow)) {
+      r = headerIndex + 1;
+      continue;
+    }
     if (hasMonth) {
       html += `<div class="sheet-month"><h4>${values[r][0]}</h4>`;
       r += 1;
@@ -299,9 +305,9 @@ function renderSheetTable(values) {
     headerRow.forEach(h => { html += '<th>' + (h || '') + '</th>'; });
     html += '</tr></thead><tbody>';
 
-    let rowsPerMonth = hasMonth ? 14 : values.length - r;
+    let rowsPerMonth = hasMonth ? 14 : values.length - headerIndex;
     for (let i = 1; i < rowsPerMonth; i++) {
-      let row = values[r + i];
+      let row = values[headerIndex + i];
       if (!row) break;
       html += '<tr>';
       for (let c = 0; c < headerRow.length; c++) {
@@ -310,7 +316,7 @@ function renderSheetTable(values) {
       html += '</tr>';
     }
     html += '</tbody></table></div>';
-    r += rowsPerMonth;
+    r = headerIndex + rowsPerMonth;
   }
 
   document.getElementById('sheet-table').innerHTML = html;
@@ -324,8 +330,12 @@ function parseTime(str) {
 }
 
 function renderStats(values) {
-  if (!values.length) {
+  if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
     document.getElementById('stats-content').innerText = 'No data';
+    document.getElementById('period-cards').innerHTML = '';
+    document.getElementById('payout-history').innerHTML = '';
+    document.getElementById('order-history').innerText = '';
+    document.getElementById('cash-summary').innerText = '';
     return;
   }
 
