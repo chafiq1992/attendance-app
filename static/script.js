@@ -267,7 +267,7 @@ function fetchSheetData() {
     .then(data => {
       sheetLoaded = true;
       renderSheetTable(data.values || []);
-      renderStats(data.values || []);
+      renderPayments(data.values || []);
     })
     .catch(err => {
       sheetLoaded = false;
@@ -329,7 +329,15 @@ function parseTime(str) {
   return parts[0] * 60 + parts[1];
 }
 
-function renderStats(values) {
+function parseNumberList(str) {
+  if (!str) return [];
+  return str
+    .split(/[,\n]+/)
+    .map(s => parseFloat(s.trim()))
+    .filter(v => !isNaN(v));
+}
+
+function renderPayments(values) {
   if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
     document.getElementById('period-cards').innerHTML = '';
     document.getElementById('payout-history').innerHTML = '';
@@ -346,12 +354,12 @@ function renderStats(values) {
   const lastDay = (values[headerIdx] || []).length - 1;
   const periods = [];
   const firstEnd = Math.min(15, lastDay);
-  periods.push({ start: 1, end: firstEnd, worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashTake: 0, orders: [], advance: 0, payout: null });
+  periods.push({ start: 1, end: firstEnd, worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashAddList: [], cashTake: 0, cashTakeList: [], orders: [], advance: 0, payout: null });
   if (lastDay > 15) {
-    periods.push({ start: 16, end: lastDay, worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashTake: 0, orders: [], advance: 0, payout: null });
+    periods.push({ start: 16, end: lastDay, worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashAddList: [], cashTake: 0, cashTakeList: [], orders: [], advance: 0, payout: null });
   }
 
-  const summary = { worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashTake: 0, orders: [] };
+  const summary = { worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashAddList: [], cashTake: 0, cashTakeList: [], orders: [] };
   const totalOrdersList = [];
   let totalCash = 0;
 
@@ -389,11 +397,15 @@ function renderStats(values) {
       summary.extra += extraCalc;
     }
 
-    const cashVal = parseFloat(values[dataStart + 10]?.[day] || '0');
-    if (!isNaN(cashVal)) {
-      p.cashAdd += cashVal;
-      summary.cashAdd += cashVal;
-      totalCash += cashVal;
+    const cashStr = (values[dataStart + 10]?.[day] || '').trim();
+    if (cashStr) {
+      const amounts = parseNumberList(cashStr);
+      const total = amounts.reduce((s, v) => s + v, 0);
+      p.cashAdd += total;
+      p.cashAddList.push(...amounts);
+      summary.cashAdd += total;
+      summary.cashAddList.push(...amounts);
+      totalCash += total;
     }
 
     const ordersStr = (values[dataStart + 11]?.[day] || '').trim();
@@ -404,11 +416,15 @@ function renderStats(values) {
       totalOrdersList.push(...arr);
     }
 
-    const advVal = parseFloat(values[dataStart + 13]?.[day] || '0');
-    if (!isNaN(advVal)) {
-      p.cashTake += advVal;
-      p.advance += advVal;
-      summary.cashTake += advVal;
+    const advStr = (values[dataStart + 13]?.[day] || '').trim();
+    if (advStr) {
+      const advAmts = parseNumberList(advStr);
+      const advTotal = advAmts.reduce((s, v) => s + v, 0);
+      p.cashTake += advTotal;
+      p.advance += advTotal;
+      p.cashTakeList.push(...advAmts);
+      summary.cashTake += advTotal;
+      summary.cashTakeList.push(...advAmts);
     }
 
     const payoutVal = parseFloat(values[dataStart + 12]?.[day]);
@@ -426,8 +442,8 @@ function renderStats(values) {
       `<div class="range">${p.start} – ${p.end}</div>` +
       `<div>Worked days: ${p.worked}</div>` +
       `<div>Extra hours: ${formatDuration(p.extra)}</div>` +
-      `<div>Cash added: ${p.cashAdd}</div>` +
-      `<div>Cash taken: ${p.cashTake}</div>` +
+      `<div>Cash added: ${p.cashAddList.join(', ')} (Total: ${p.cashAdd})</div>` +
+      `<div>Cash taken: ${p.cashTakeList.join(', ')} (Total: ${p.cashTake})</div>` +
       `<div>Orders: ${p.orders.join(', ')}</div>` +
       `<div>Advance: ${p.advance}</div>` +
       (p.payout ? `<div>Payout: ${p.payout}</div>` : '') +

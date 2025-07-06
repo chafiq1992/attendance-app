@@ -216,12 +216,33 @@ def payout():
 def advance():
     data = request.json or {}
     employee = data.get("employee", "").strip()
-    amount   = data.get("amount")
+    amount = data.get("amount")
     if not employee or amount is None:
         return {"ok": False, "msg": "employee & amount required"}, 400
 
     today = dt.datetime.now(dt.timezone.utc).astimezone().day
-    record_value(employee, "advance", today, amount)
+
+    ensure_employee_sheet(employee)
+    ensure_current_month_table(employee)
+    base_row = 3
+    col = today + 1
+    row = base_row + 13  # advance row offset
+    cell = f"{col_to_letter(col)}{row}"
+
+    result = sheet.values().get(
+        spreadsheetId=config.GOOGLE_SHEET_ID,
+        range=f"{employee}!{cell}"
+    ).execute()
+    existing = result.get("values", [[""]])[0][0] if result.get("values") else ""
+    new_val = f"{existing}\n{amount}" if existing else str(amount)
+
+    sheet.values().update(
+        spreadsheetId=config.GOOGLE_SHEET_ID,
+        range=f"{employee}!{cell}",
+        valueInputOption="USER_ENTERED",
+        body={"values": [[new_val]]},
+    ).execute()
+
     return jsonify(ok=True, msg="Advance recorded")
 
 
@@ -247,17 +268,13 @@ def cash():
         range=f"{employee}!{cell}"
     ).execute()
     existing = result.get("values", [[""]])[0][0] if result.get("values") else ""
-    try:
-        current_total = float(existing) if existing else 0.0
-    except ValueError:
-        current_total = 0.0
-    new_total = current_total + float(amount)
+    new_val = f"{existing}\n{amount}" if existing else str(amount)
 
     sheet.values().update(
         spreadsheetId=config.GOOGLE_SHEET_ID,
         range=f"{employee}!{cell}",
         valueInputOption="USER_ENTERED",
-        body={"values": [[str(new_total)]]},
+        body={"values": [[new_val]]},
     ).execute()
 
     return jsonify(ok=True, msg="Cash recorded")
