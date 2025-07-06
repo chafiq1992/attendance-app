@@ -339,7 +339,12 @@ function renderStats(values) {
     return;
   }
 
-  const lastDay = values[0].length - 1;
+  let headerIdx = 0;
+  if ((values[0][0] || '').toLowerCase() !== 'name') {
+    headerIdx = 1;
+  }
+  const dataStart = headerIdx + 1;
+  const lastDay = (values[headerIdx] || []).length - 1;
   const periods = [];
   const firstEnd = Math.min(15, lastDay);
   periods.push({ start: 1, end: firstEnd, worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashTake: 0, orders: [], advance: 0, payout: null });
@@ -354,20 +359,20 @@ function renderStats(values) {
   for (let day = 1; day <= lastDay; day++) {
     const p = day <= 15 ? periods[0] : periods[1];
 
-    const inM = parseTime(values[1]?.[day]);
-    const outM = parseTime(values[2]?.[day]);
+    const inM = parseTime(values[dataStart]?.[day]);
+    const outM = parseTime(values[dataStart + 1]?.[day]);
     if (inM != null && outM != null && outM > inM) {
       const main = outM - inM;
       let breakMin = 0;
-      const bStart = parseTime(values[5]?.[day]);
-      const bEnd = parseTime(values[6]?.[day]);
+      const bStart = parseTime(values[dataStart + 4]?.[day]);
+      const bEnd = parseTime(values[dataStart + 5]?.[day]);
       if (bStart != null && bEnd != null && bEnd > bStart) {
         breakMin = bEnd - bStart;
       }
 
       let extraMin = 0;
-      const eStart = parseTime(values[8]?.[day]);
-      const eEnd = parseTime(values[9]?.[day]);
+      const eStart = parseTime(values[dataStart + 7]?.[day]);
+      const eEnd = parseTime(values[dataStart + 8]?.[day]);
       if (eStart != null && eEnd != null && eEnd > eStart) {
         extraMin = eEnd - eStart;
       }
@@ -385,14 +390,14 @@ function renderStats(values) {
       summary.extra += extraCalc;
     }
 
-    const cashVal = parseFloat(values[10]?.[day] || '0');
+    const cashVal = parseFloat(values[dataStart + 10]?.[day] || '0');
     if (!isNaN(cashVal)) {
       p.cashAdd += cashVal;
       summary.cashAdd += cashVal;
       totalCash += cashVal;
     }
 
-    const ordersStr = (values[11]?.[day] || '').trim();
+    const ordersStr = (values[dataStart + 11]?.[day] || '').trim();
     if (ordersStr) {
       const arr = ordersStr.split(',').map(s => s.trim()).filter(Boolean);
       p.orders.push(...arr);
@@ -400,14 +405,14 @@ function renderStats(values) {
       totalOrdersList.push(...arr);
     }
 
-    const advVal = parseFloat(values[13]?.[day] || '0');
+    const advVal = parseFloat(values[dataStart + 13]?.[day] || '0');
     if (!isNaN(advVal)) {
       p.cashTake += advVal;
       p.advance += advVal;
       summary.cashTake += advVal;
     }
 
-    const payoutVal = parseFloat(values[12]?.[day]);
+    const payoutVal = parseFloat(values[dataStart + 12]?.[day]);
     if (!isNaN(payoutVal)) {
       p.payout = payoutVal;
     }
@@ -427,8 +432,6 @@ function renderStats(values) {
   periods.forEach(p => {
     const card = `<div class="period-card ${p.payout ? 'archived' : 'current'}">` +
       `<div class="range">${p.start} – ${p.end}</div>` +
-      `<div>Worked days: ${p.worked}</div>` +
-      `<div>Total hours: ${formatDuration(p.minutes)}</div>` +
       `<div>Extra hours: ${formatDuration(p.extra)}</div>` +
       `<div>Cash added: ${p.cashAdd}</div>` +
       `<div>Cash taken: ${p.cashTake}</div>` +
@@ -458,25 +461,6 @@ function recordPayout() {
   const amt = document.getElementById('payoutAmount').value;
   if (!amt) return;
   fetch('/payout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ employee: employeeName, amount: amt })
-  })
-  .then(r => r.json())
-  .then(res => {
-    document.getElementById('msg').innerText = res.msg || 'OK';
-    sheetLoaded = false;
-    fetchSheetData();
-  })
-  .catch(err => {
-    document.getElementById('msg').innerText = 'Error: ' + err.message;
-  });
-}
-
-function recordAdvance() {
-  const amt = document.getElementById('advanceAmount').value;
-  if (!amt) return;
-  fetch('/advance', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ employee: employeeName, amount: amt })

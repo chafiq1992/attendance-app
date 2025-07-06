@@ -174,7 +174,6 @@ h2 {
 
 #order-section,
 #cash-section,
-#advance-section,
 #payout-section {
   display: flex;
   align-items: center;
@@ -186,16 +185,12 @@ h2 {
 
 #order-section input,
 #cash-section input,
-#advance-section input,
 #payout-section input {
   padding: 6px;
   margin-right: 8px;
   flex: 1;
 }
 
-#advance-section {
-  margin-top: 20px;
-}
 #period-cards {
   display: flex;
   flex-direction: column;
