@@ -304,10 +304,15 @@ def sheet_data_route():
         return {"ok": False, "msg": "employee required"}, 400
 
     ensure_employee_sheet(employee)
-    result = sheet.values().get(
-        spreadsheetId=config.GOOGLE_SHEET_ID,
-        range=f"{employee}!A1:AG",
-    ).execute()
+    try:
+        result = sheet.values().get(
+            spreadsheetId=config.GOOGLE_SHEET_ID,
+            range=f"{employee}!A1:AG",
+        ).execute()
+    except Exception:
+        logger.exception("Failed fetching sheet data for %s", employee)
+        return jsonify(error="Failed retrieving sheet data"), 500
+
     values = result.get("values", [])
     return jsonify(values=values)
 
