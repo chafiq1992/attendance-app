@@ -49,21 +49,23 @@
   <div id="tab-stats" class="tab-content">
     <div id="stats-content"></div>
     <div id="period-cards"></div>
-    <div id="order-section">
-      <input type="number" id="orderInput" placeholder="Order number" />
-      <button onclick="recordOrder()">Add Order</button>
-    </div>
-    <div id="cash-section">
-      <input type="number" id="cashAmount" placeholder="Cash amount" />
-      <button onclick="recordCash()">Add Cash</button>
-    </div>
-    <div id="advance-section">
-      <input type="number" id="advanceAmount" placeholder="Advance amount" />
-      <button onclick="recordAdvance()">Record Advance</button>
-    </div>
-    <div id="payout-section">
-      <input type="number" id="payoutAmount" placeholder="Payout amount" />
-      <button onclick="recordPayout()">Record Payout</button>
+    <div class="stats-controls">
+      <div id="order-section">
+        <input type="number" id="orderInput" placeholder="Order number" />
+        <button class="stats-btn" onclick="recordOrder()">Add Order</button>
+      </div>
+      <div id="cash-section">
+        <input type="number" id="cashAmount" placeholder="Cash amount" />
+        <button class="stats-btn" onclick="recordCash()">Add Cash</button>
+      </div>
+      <div id="advance-section">
+        <input type="number" id="advanceAmount" placeholder="Advance amount" />
+        <button class="stats-btn" onclick="recordAdvance()">Record Advance</button>
+      </div>
+      <div id="payout-section">
+        <input type="number" id="payoutAmount" placeholder="Payout amount" />
+        <button class="stats-btn" onclick="recordPayout()">Record Payout</button>
+      </div>
     </div>
     <div id="payout-history"></div>
     <div id="order-history"></div>
