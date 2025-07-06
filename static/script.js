@@ -249,7 +249,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(div => {
     div.classList.toggle('active', div.id === 'tab-' + tab);
   });
-  if ((tab === 'sheet' || tab === 'stats' || tab === 'performance') && !sheetLoaded) {
+  if ((tab === 'sheet' || tab === 'stats') && !sheetLoaded) {
     fetchSheetData();
   }
 }
@@ -267,8 +267,7 @@ function fetchSheetData() {
     .then(data => {
       sheetLoaded = true;
       renderSheetTable(data.values || []);
-      renderPayments(data.values || []);
-      renderPerformance(data.values || []);
+      renderStats(data.values || []);
     })
     .catch(err => {
       sheetLoaded = false;
@@ -338,7 +337,7 @@ function parseNumberList(str) {
     .filter(v => !isNaN(v));
 }
 
-function renderPayments(values) {
+function renderStats(values) {
   if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
     document.getElementById('period-cards').innerHTML = '';
     document.getElementById('payout-history').innerHTML = '';
