@@ -36,6 +36,16 @@ function saveTodayLogs() {
   localStorage.setItem(key, JSON.stringify(todayLogs));
 }
 
+// Remove today's logs from localStorage and reset in-memory state
+function clearLocalLogs() {
+  let key = storageKey();
+  localStorage.removeItem(key);
+  todayLogs = { main: [], break: [], extra: [] };
+  openPeriods = { main: null, break: null, extra: null };
+  document.getElementById('status').innerText = 'Status: Not Clocked In';
+  renderDayLog();
+}
+
 function getOpenPeriodsFromLogs(logs) {
   let open = { main: null, break: null, extra: null };
   ['main','break','extra'].forEach(cat => {
