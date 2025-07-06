@@ -186,18 +186,11 @@ def attendance():
     data = request.json or {}
     employee = data.get("employee", "").strip()
     action   = data.get("action", "").lower()
-    cash     = data.get("cash")
-    orders   = data.get("orders")
     if not employee or not action:
         return {"ok": False, "msg": "employee & action required"}, 400
 
     today = dt.datetime.now(dt.timezone.utc).astimezone().day
     ok, msg = record_time(employee, action, today)
-    if action == "clockout":
-        if cash is not None and str(cash).strip():
-            record_value(employee, "cash", today, cash)
-        if orders is not None and str(orders).strip():
-            record_value(employee, "orders", today, orders)
     return jsonify(ok=ok, msg=msg)
 
 
@@ -225,6 +218,78 @@ def advance():
     today = dt.datetime.now(dt.timezone.utc).astimezone().day
     record_value(employee, "advance", today, amount)
     return jsonify(ok=True, msg="Advance recorded")
+
+
+@server.route("/cash", methods=["POST"])
+def cash():
+    data = request.json or {}
+    employee = data.get("employee", "").strip()
+    amount = data.get("amount")
+    if not employee or amount is None:
+        return {"ok": False, "msg": "employee & amount required"}, 400
+
+    today = dt.datetime.now(dt.timezone.utc).astimezone().day
+
+    ensure_employee_sheet(employee)
+    ensure_current_month_table(employee)
+    base_row = 3
+    col = today + 1
+    row = base_row + 9  # cash row offset
+    cell = f"{col_to_letter(col)}{row}"
+
+    result = sheet.values().get(
+        spreadsheetId=config.GOOGLE_SHEET_ID,
+        range=f"{employee}!{cell}"
+    ).execute()
+    existing = result.get("values", [[""]])[0][0] if result.get("values") else ""
+    try:
+        current_total = float(existing) if existing else 0.0
+    except ValueError:
+        current_total = 0.0
+    new_total = current_total + float(amount)
+
+    sheet.values().update(
+        spreadsheetId=config.GOOGLE_SHEET_ID,
+        range=f"{employee}!{cell}",
+        valueInputOption="USER_ENTERED",
+        body={"values": [[str(new_total)]]},
+    ).execute()
+
+    return jsonify(ok=True, msg="Cash recorded")
+
+
+@server.route("/order", methods=["POST"])
+def order():
+    data = request.json or {}
+    employee = data.get("employee", "").strip()
+    number = str(data.get("number", "")).strip()
+    if not employee or not number:
+        return {"ok": False, "msg": "employee & number required"}, 400
+
+    today = dt.datetime.now(dt.timezone.utc).astimezone().day
+
+    ensure_employee_sheet(employee)
+    ensure_current_month_table(employee)
+    base_row = 3
+    col = today + 1
+    row = base_row + 10  # orders row offset
+    cell = f"{col_to_letter(col)}{row}"
+
+    result = sheet.values().get(
+        spreadsheetId=config.GOOGLE_SHEET_ID,
+        range=f"{employee}!{cell}"
+    ).execute()
+    existing = result.get("values", [[""]])[0][0] if result.get("values") else ""
+    new_val = f"{existing},{number}" if existing else number
+
+    sheet.values().update(
+        spreadsheetId=config.GOOGLE_SHEET_ID,
+        range=f"{employee}!{cell}",
+        valueInputOption="USER_ENTERED",
+        body={"values": [[new_val]]},
+    ).execute()
+
+    return jsonify(ok=True, msg="Order recorded")
 
 @server.route("/sheet_data")
 def sheet_data_route():
