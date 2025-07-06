@@ -309,108 +309,110 @@ function renderStats(values) {
     document.getElementById('stats-content').innerText = 'No data';
     return;
   }
-  let workedDays = 0, totalMin = 0;
-  let totalCash = 0, totalAdvance = 0;
-  let totalOrdersList = [];
-  let periods = [];
-  let current = {start: 1, days: 0, minutes: 0, cash: 0, orders: [], advance: 0, payout: null};
-  let cols = values[0].length;
-  for (let c = 1; c < cols; c++) {
-    let inM = parseTime(values[1]?.[c]);
-    let outM = parseTime(values[2]?.[c]);
+
+  const lastDay = values[0].length - 1;
+  const periods = [];
+  const firstEnd = Math.min(15, lastDay);
+  periods.push({ start: 1, end: firstEnd, worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashTake: 0, orders: [], advance: 0, payout: null });
+  if (lastDay > 15) {
+    periods.push({ start: 16, end: lastDay, worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashTake: 0, orders: [], advance: 0, payout: null });
+  }
+
+  const summary = { worked: 0, minutes: 0, extra: 0, cashAdd: 0, cashTake: 0, orders: [] };
+  const totalOrdersList = [];
+  let totalCash = 0;
+
+  for (let day = 1; day <= lastDay; day++) {
+    const p = day <= 15 ? periods[0] : periods[1];
+
+    const inM = parseTime(values[1]?.[day]);
+    const outM = parseTime(values[2]?.[day]);
     if (inM != null && outM != null && outM > inM) {
-      let minutes = outM - inM;
-      let bStart = parseTime(values[5]?.[c]);
-      let bEnd = parseTime(values[6]?.[c]);
+      const main = outM - inM;
+      let breakMin = 0;
+      const bStart = parseTime(values[5]?.[day]);
+      const bEnd = parseTime(values[6]?.[day]);
       if (bStart != null && bEnd != null && bEnd > bStart) {
-        minutes -= (bEnd - bStart);
+        breakMin = bEnd - bStart;
       }
-      let eStart = parseTime(values[8]?.[c]);
-      let eEnd = parseTime(values[9]?.[c]);
+
+      let extraMin = 0;
+      const eStart = parseTime(values[8]?.[day]);
+      const eEnd = parseTime(values[9]?.[day]);
       if (eStart != null && eEnd != null && eEnd > eStart) {
-        minutes += (eEnd - eStart);
+        extraMin = eEnd - eStart;
       }
-      totalMin += minutes;
-      workedDays += 1;
-      current.minutes += minutes;
-      current.days += 1;
+
+      const net = main - breakMin + extraMin;
+      if (net >= 450) {
+        p.worked += 1;
+        summary.worked += 1;
+      }
+      p.minutes += net;
+      summary.minutes += net;
+
+      const extraCalc = Math.max((main - breakMin) - 500, 0) + extraMin;
+      p.extra += extraCalc;
+      summary.extra += extraCalc;
     }
-    let cashVal = parseFloat(values[10]?.[c] || '0');
+
+    const cashVal = parseFloat(values[10]?.[day] || '0');
     if (!isNaN(cashVal)) {
+      p.cashAdd += cashVal;
+      summary.cashAdd += cashVal;
       totalCash += cashVal;
-      current.cash += cashVal;
     }
-    let orderStr = (values[11]?.[c] || '').trim();
-    if (orderStr) {
-      let parts = orderStr.split(',').map(s => s.trim()).filter(Boolean);
-      totalOrdersList.push(...parts);
-      current.orders.push(...parts);
+
+    const ordersStr = (values[11]?.[day] || '').trim();
+    if (ordersStr) {
+      const arr = ordersStr.split(',').map(s => s.trim()).filter(Boolean);
+      p.orders.push(...arr);
+      summary.orders.push(...arr);
+      totalOrdersList.push(...arr);
     }
-    let advanceVal = parseFloat(values[13]?.[c] || '0');
-    if (!isNaN(advanceVal)) {
-      totalAdvance += advanceVal;
-      current.advance += advanceVal;
+
+    const advVal = parseFloat(values[13]?.[day] || '0');
+    if (!isNaN(advVal)) {
+      p.cashTake += advVal;
+      p.advance += advVal;
+      summary.cashTake += advVal;
     }
-    let payoutVal = parseFloat(values[12]?.[c]);
+
+    const payoutVal = parseFloat(values[12]?.[day]);
     if (!isNaN(payoutVal)) {
-      current.payout = payoutVal;
-      current.end = c;
-      periods.push(current);
-      current = {start: c + 1, days: 0, minutes: 0, cash: 0, orders: [], advance: 0, payout: null};
+      p.payout = payoutVal;
     }
   }
-  current.end = cols - 1;
-  periods.unshift(current); // latest period first
 
-  document.getElementById('stats-content').innerHTML =
-    `<p>Worked days: <strong>${workedDays}</strong></p>` +
-    `<p>Total hours: <strong>${formatDuration(totalMin)}</strong></p>` +
-    `<p>Total cash: <strong>${totalCash}</strong></p>` +
-    `<p>Total advance: <strong>${totalAdvance}</strong></p>`;
+  const summaryHtml =
+    `<p>Worked days: <strong>${summary.worked}</strong></p>` +
+    `<p>Total hours: <strong>${formatDuration(summary.minutes)}</strong></p>` +
+    `<p>Extra hours: <strong>${formatDuration(summary.extra)}</strong></p>` +
+    `<p>Cash added: <strong>${summary.cashAdd}</strong></p>` +
+    `<p>Cash taken: <strong>${summary.cashTake}</strong></p>` +
+    `<p>Orders: <strong>${summary.orders.join(', ')}</strong></p>`;
+  document.getElementById('stats-content').innerHTML = summaryHtml;
 
-  const cardsContainer = document.getElementById('period-cards');
-  cardsContainer.innerHTML = '';
-  periods.forEach((p) => {
-    const cls = p.payout ? 'archived' : 'current';
-    const card = document.createElement('div');
-    card.className = `period-card ${cls}`;
-
-    const rangeDiv = document.createElement('div');
-    rangeDiv.className = 'range';
-    rangeDiv.textContent = `${p.start} - ${p.end}`;
-    card.appendChild(rangeDiv);
-
-    const daysDiv = document.createElement('div');
-    daysDiv.textContent = `Days: ${p.days}`;
-    card.appendChild(daysDiv);
-
-    const hoursDiv = document.createElement('div');
-    hoursDiv.textContent = `Hours: ${formatDuration(p.minutes)}`;
-    card.appendChild(hoursDiv);
-
-    const cashDiv = document.createElement('div');
-    cashDiv.textContent = `Cash: ${p.cash}`;
-    card.appendChild(cashDiv);
-
-    const ordersDiv = document.createElement('div');
-    ordersDiv.textContent = `Orders: ${p.orders.join(', ')}`;
-    card.appendChild(ordersDiv);
-
-    const advDiv = document.createElement('div');
-    advDiv.textContent = `Advance: ${p.advance}`;
-    card.appendChild(advDiv);
-
-    if (p.payout) {
-      const payoutDiv = document.createElement('div');
-      payoutDiv.textContent = `Payout: ${p.payout}`;
-      card.appendChild(payoutDiv);
-    }
-
-    cardsContainer.appendChild(card);
+  const currentCards = [];
+  const archivedCards = [];
+  periods.forEach(p => {
+    const card = `<div class="period-card ${p.payout ? 'archived' : 'current'}">` +
+      `<div class="range">${p.start} – ${p.end}</div>` +
+      `<div>Worked days: ${p.worked}</div>` +
+      `<div>Total hours: ${formatDuration(p.minutes)}</div>` +
+      `<div>Extra hours: ${formatDuration(p.extra)}</div>` +
+      `<div>Cash added: ${p.cashAdd}</div>` +
+      `<div>Cash taken: ${p.cashTake}</div>` +
+      `<div>Orders: ${p.orders.join(', ')}</div>` +
+      `<div>Advance: ${p.advance}</div>` +
+      (p.payout ? `<div>Payout: ${p.payout}</div>` : '') +
+      `</div>`;
+    if (p.payout) archivedCards.push(card); else currentCards.push(card);
   });
+  document.getElementById('period-cards').innerHTML = currentCards.join('') + archivedCards.join('');
 
   let histHtml = '';
-  let paid = periods.filter(p => p.payout);
+  const paid = periods.filter(p => p.payout);
   if (paid.length) {
     histHtml += '<h4>Payout History</h4><table><thead><tr><th>Start</th><th>End</th><th>Amount</th></tr></thead><tbody>';
     paid.forEach(p => {
