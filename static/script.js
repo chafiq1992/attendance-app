@@ -256,14 +256,23 @@ function switchTab(tab) {
 
 function fetchSheetData() {
   fetch('/sheet_data?employee=' + encodeURIComponent(employeeName))
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) {
+        return r.text().then(t => {
+          throw new Error(`HTTP ${r.status} ${t || r.statusText}`);
+        });
+      }
+      return r.json();
+    })
     .then(data => {
       sheetLoaded = true;
       renderSheetTable(data.values || []);
       renderStats(data.values || []);
     })
-    .catch(() => {
-      document.getElementById('sheet-table').innerText = 'Error loading data';
+    .catch(err => {
+      sheetLoaded = false;
+      document.getElementById('sheet-table').innerText =
+        'Error loading data: ' + err.message;
     });
 }
 
