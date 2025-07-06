@@ -327,9 +327,9 @@ function renderStats(values) {
     return;
   }
   let workedDays = 0, totalMin = 0;
-  let totalCash = 0, totalOrders = 0;
-  let payoutHistory = [];
-  let periodStart = 1, periodDays = 0, periodMin = 0;
+  let totalCash = 0, totalOrders = 0, totalAdvance = 0;
+  let periods = [];
+  let current = {start: 1, days: 0, minutes: 0, cash: 0, orders: 0, advance: 0, payout: null};
   let cols = values[0].length;
   for (let c = 1; c < cols; c++) {
     let inM = parseTime(values[1]?.[c]);
@@ -348,32 +348,63 @@ function renderStats(values) {
       }
       totalMin += minutes;
       workedDays += 1;
-      periodMin += minutes;
-      periodDays += 1;
+      current.minutes += minutes;
+      current.days += 1;
     }
     let cashVal = parseFloat(values[10]?.[c] || '0');
-    if (!isNaN(cashVal)) totalCash += cashVal;
+    if (!isNaN(cashVal)) {
+      totalCash += cashVal;
+      current.cash += cashVal;
+    }
     let orderVal = parseInt(values[11]?.[c] || '0', 10);
-    if (!isNaN(orderVal)) totalOrders += orderVal;
+    if (!isNaN(orderVal)) {
+      totalOrders += orderVal;
+      current.orders += orderVal;
+    }
+    let advanceVal = parseFloat(values[13]?.[c] || '0');
+    if (!isNaN(advanceVal)) {
+      totalAdvance += advanceVal;
+      current.advance += advanceVal;
+    }
     let payoutVal = parseFloat(values[12]?.[c]);
     if (!isNaN(payoutVal)) {
-      payoutHistory.push({start: periodStart, end: c, days: periodDays, minutes: periodMin, amount: payoutVal});
-      periodStart = c + 1;
-      periodDays = 0;
-      periodMin = 0;
+      current.payout = payoutVal;
+      current.end = c;
+      periods.push(current);
+      current = {start: c + 1, days: 0, minutes: 0, cash: 0, orders: 0, advance: 0, payout: null};
     }
   }
+  current.end = cols - 1;
+  periods.unshift(current); // latest period first
+
   document.getElementById('stats-content').innerHTML =
     `<p>Worked days: <strong>${workedDays}</strong></p>` +
     `<p>Total hours: <strong>${formatDuration(totalMin)}</strong></p>` +
     `<p>Total cash: <strong>${totalCash}</strong></p>` +
-    `<p>Total orders: <strong>${totalOrders}</strong></p>`;
+    `<p>Total orders: <strong>${totalOrders}</strong></p>` +
+    `<p>Total advance: <strong>${totalAdvance}</strong></p>`;
+
+  let cardsHtml = '';
+  periods.forEach((p, idx) => {
+    let cls = p.payout ? 'archived' : 'current';
+    cardsHtml += `<div class="period-card ${cls}">` +
+      `<div class="range">${p.start} - ${p.end}</div>` +
+      `<div>Days: ${p.days}</div>` +
+      `<div>Hours: ${formatDuration(p.minutes)}</div>` +
+      `<div>Cash: ${p.cash}</div>` +
+      `<div>Orders: ${p.orders}</div>` +
+      `<div>Advance: ${p.advance}</div>` +
+      (p.payout ? `<div>Payout: ${p.payout}</div>` : '') +
+      `</div>`;
+  });
+  document.getElementById('period-cards').innerHTML = cardsHtml;
 
   let histHtml = '';
-  if (payoutHistory.length) {
-    histHtml += '<h4>Payout History</h4><table><thead><tr><th>Start</th><th>End</th><th>Days</th><th>Hours</th><th>Amount</th></tr></thead><tbody>';
-    payoutHistory.forEach(p => {
-      histHtml += `<tr><td>${p.start}</td><td>${p.end}</td><td>${p.days}</td><td>${formatDuration(p.minutes)}</td><td>${p.amount}</td></tr>`;
+  let paid = periods.filter(p => p.payout);
+  if (paid.length) {
+    histHtml += '<h4>Payout History</h4><table><thead><tr><th>Start</th><th>End</th><th>Amount</th></tr></thead><tbody>';
+    paid.forEach(p => {
+      histHtml += `<tr><td>${p.start}</td><td>${p.end}</td><td>${p.payout}</td></tr>`;
     });
     histHtml += '</tbody></table>';
   }
@@ -384,6 +415,25 @@ function recordPayout() {
   const amt = document.getElementById('payoutAmount').value;
   if (!amt) return;
   fetch('/payout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ employee: employeeName, amount: amt })
+  })
+  .then(r => r.json())
+  .then(res => {
+    document.getElementById('msg').innerText = res.msg || 'OK';
+    sheetLoaded = false;
+    fetchSheetData();
+  })
+  .catch(err => {
+    document.getElementById('msg').innerText = 'Error: ' + err.message;
+  });
+}
+
+function recordAdvance() {
+  const amt = document.getElementById('advanceAmount').value;
+  if (!amt) return;
+  fetch('/advance', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ employee: employeeName, amount: amt })

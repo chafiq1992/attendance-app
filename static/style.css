@@ -171,6 +171,34 @@ h2 {
   padding: 6px;
   margin-right: 8px;
 }
+#advance-section {
+  margin-top: 20px;
+}
+#advance-section input {
+  padding: 6px;
+  margin-right: 8px;
+}
+#period-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+}
+.period-card {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px #0002;
+}
+.period-card.archived {
+  opacity: 0.7;
+}
+.period-card .range {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
 #payout-history table {
   width: 100%;
   border-collapse: collapse;
