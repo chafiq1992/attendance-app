@@ -46,8 +46,9 @@ def ensure_employee_sheet(name: str) -> str:
             name, "(Out)", "(Duration)", "(Work Outcome)",
             "(Break Start)", "(Break End)", "(Break Outcome)",
             "(Extra Start)", "(Extra End)", "(Extra Outcome)",
+            "(Cash Amount)", "(Order Count)", "(Payout)",
         ]
-        ws.update("A2:A11", [[lbl] for lbl in labels])
+        ws.update("A2:A14", [[lbl] for lbl in labels])
 
         return name
 
@@ -83,6 +84,9 @@ def ensure_current_month_table(name: str) -> None:
                 "(Extra Start)",
                 "(Extra End)",
                 "(Extra Outcome)",
+                "(Cash Amount)",
+                "(Order Count)",
+                "(Payout)",
             ]
 
             rows = [[current_label], header] + [[lbl] for lbl in labels]
@@ -140,6 +144,33 @@ def record_time(employee: str, action: str, day: int):
     ).execute()
     return True, f"{action.upper()} recorded @ {time_str}"
 
+
+def record_value(employee: str, label: str, day: int, value: str):
+    """Store an arbitrary value in the row mapped by `label`."""
+    ensure_employee_sheet(employee)
+    ensure_current_month_table(employee)
+
+    base_row = 3
+    col = day + 1
+    mapping = {
+        "cash": 9,
+        "orders": 10,
+        "payout": 11,
+    }
+    if label not in mapping:
+        return False, f"Unknown label «{label}»"
+
+    target_row = base_row + mapping[label]
+    cell = f"{col_to_letter(col)}{target_row}"
+
+    sheet.values().update(
+        spreadsheetId=config.GOOGLE_SHEET_ID,
+        range=f"{employee}!{cell}",
+        valueInputOption="USER_ENTERED",
+        body={"values": [[str(value)]]},
+    ).execute()
+    return True, "OK"
+
 # --------------------------------------------------------------------
 # 4.  Routes
 # --------------------------------------------------------------------
@@ -153,12 +184,32 @@ def attendance():
     data = request.json or {}
     employee = data.get("employee", "").strip()
     action   = data.get("action", "").lower()
+    cash     = data.get("cash")
+    orders   = data.get("orders")
     if not employee or not action:
         return {"ok": False, "msg": "employee & action required"}, 400
 
     today = dt.datetime.now(dt.timezone.utc).astimezone().day
     ok, msg = record_time(employee, action, today)
+    if action == "clockout":
+        if cash is not None and str(cash).strip():
+            record_value(employee, "cash", today, cash)
+        if orders is not None and str(orders).strip():
+            record_value(employee, "orders", today, orders)
     return jsonify(ok=ok, msg=msg)
+
+
+@server.route("/payout", methods=["POST"])
+def payout():
+    data = request.json or {}
+    employee = data.get("employee", "").strip()
+    amount   = data.get("amount")
+    if not employee or amount is None:
+        return {"ok": False, "msg": "employee & amount required"}, 400
+
+    today = dt.datetime.now(dt.timezone.utc).astimezone().day
+    record_value(employee, "payout", today, amount)
+    return jsonify(ok=True, msg="Payout recorded")
 
 @server.route("/sheet_data")
 def sheet_data_route():

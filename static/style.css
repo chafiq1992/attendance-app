@@ -92,6 +92,12 @@ h2 {
   max-width: 350px;
   margin: auto;
 }
+#modalConfirm input {
+  width: 80%;
+  padding: 6px;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
 #modalConfirm p { font-size: 20px; margin: 0 0 18px 0; }
 #modalConfirm .modal-time { font-size: 17px; color: #007BFF; margin-bottom: 18px; }
 #modalConfirm button {
@@ -156,4 +162,25 @@ h2 {
 
 .sheet-month h4 {
   margin: 10px 0;
+}
+
+#payout-section {
+  margin-top: 20px;
+}
+#payout-section input {
+  padding: 6px;
+  margin-right: 8px;
+}
+#payout-history table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+#payout-history th, #payout-history td {
+  border: 1px solid #ccc;
+  padding: 4px;
+  text-align: center;
+}
+#payout-history th {
+  background: #f0f0f0;
 }
