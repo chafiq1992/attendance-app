@@ -44,7 +44,7 @@ function clearLocalLogs() {
   openPeriods = { main: null, break: null, extra: null };
   document.getElementById('status').innerText = 'Status: Not Clocked In';
   renderDayLog();
-  renderStats();
+  renderDayStats();
 }
 
 function getOpenPeriodsFromLogs(logs) {
@@ -70,7 +70,7 @@ window.onload = function() {
   document.getElementById('employeeName').innerText = '👤 ' + employeeName;
   startClock();
   renderDayLog();
-  renderStats();
+  renderDayStats();
 };
 
 function startClock() {
@@ -198,7 +198,7 @@ function renderDayLog() {
   document.getElementById('break-log').innerHTML = renderSection(todayLogs.break, 'break');
   document.getElementById('extra-log').innerHTML = renderSection(todayLogs.extra, 'extra');
   saveTodayLogs();
-  renderStats();
+  renderDayStats();
 }
 
 function getCategoryTotalMinutes(category, now = null, ignoreOpen = false) {
@@ -238,7 +238,7 @@ function formatDuration(mins) {
   return (h ? `${h}h ` : '') + (m ? `${m}min` : (h ? '' : '0 min'));
 }
 
-function renderStats() {
+function renderDayStats() {
   const main = getCategoryTotalMinutes('main');
   const brk = getCategoryTotalMinutes('break');
   const extra = getCategoryTotalMinutes('extra');
@@ -264,7 +264,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(div => {
     div.classList.toggle('active', div.id === 'tab-' + tab);
   });
-  if ((tab === 'sheet' || tab === 'payments' || tab === 'performance') && !sheetLoaded) {
+  if ((tab === 'sheet' || tab === 'stats') && !sheetLoaded) {
     fetchSheetData();
   }
 }
@@ -282,7 +282,7 @@ function fetchSheetData() {
     .then(data => {
       sheetLoaded = true;
       renderSheetTable(data.values || []);
-      renderPayments(data.values || []);
+      renderStats(data.values || []);
       renderPerformance(data.values || []);
     })
     .catch(err => {
@@ -353,7 +353,7 @@ function parseNumberList(str) {
     .filter(v => !isNaN(v));
 }
 
-function renderPayments(values) {
+function renderStats(values) {
   if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
     document.getElementById('period-cards').innerHTML = '';
     document.getElementById('payout-history').innerHTML = '';
