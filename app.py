@@ -97,6 +97,15 @@ def ensure_current_month_table(name: str) -> None:
                     logger.error("Cleanup of failed table setup also failed: %s", cleanup_exc)
             raise
 
+def col_to_letter(col: int) -> str:
+    """Convert 1-indexed column number to Excel-style letters."""
+    letters = ""
+    while col:
+        col, rem = divmod(col - 1, 26)
+        letters = chr(65 + rem) + letters
+    return letters
+
+
 def record_time(employee: str, action: str, day: int):
     """Write today’s time into the proper cell."""
     now = dt.datetime.now(dt.timezone.utc).astimezone(
@@ -121,11 +130,13 @@ def record_time(employee: str, action: str, day: int):
 
     target_row = base_row + mapping[action]
 
+    cell = f"{col_to_letter(col)}{target_row}"
+
     sheet.values().update(
         spreadsheetId=config.GOOGLE_SHEET_ID,
-        range=f"{employee}!{target_row}:{target_row}",
+        range=f"{employee}!{cell}",
         valueInputOption="USER_ENTERED",
-        body={"values": [[""] * (col - 1) + [time_str]]},
+        body={"values": [[time_str]]},
     ).execute()
     return True, f"{action.upper()} recorded @ {time_str}"
 
