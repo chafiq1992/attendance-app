@@ -1,12 +1,7 @@
-1732ff2790aaef869535c7711ce4551fe07506cb67c79997f3eb288fdd689591:{"__metadata":{"version":0.1},"root":{"workflow_name":"Tag 12livery orders","steps":[{"step_id":"trigger-order-created","step_position":[-260,-200],"task_id":"shopify::admin::order_created","task_version":"0.1","task_type":"TRIGGER","config_field_values":[]},{"step_id":"condition-city-in-list","step_position":[100,-240],"task_id":"shopify::flow::condition","task_version":"0.1","task_type":"CONDITION","config_field_values":[{"config_field_id":"condition","value":"{\"uuid\":\"root\",\"lhs\":{\"uuid\":\"cmp\",\"lhs\":{\"uuid\":\"lhs\",\"value\":\"order.shippingAddress.city\",\"comparison_value_type\":\"EnvironmentValue\",\"full_environment_path\":\"order.shippingAddress.city\"},\"rhs\":{\"uuid\":\"rhs\",\"value\":\"[\\\"ouled azzouz\\\",\\\"ain harrouda\\\",\\\"beni ahmed settat\\\",\\\"ben ahmed\\\",\\\"ben ahmed settat\\\",\\\"bensliman\\\",\\\"benslimane\\\",\\\"berrchid\\\",\\\"bouskoura\\\",\\\"bouznika\\\",\\\"casablanca\\\",\\\"dar bouazza\\\",\\\"el borouj\\\",\\\"el borouj (beni mellal)\\\",\\\"lbrouj\\\",\\\"el gara berrchid\\\",\\\"errahma\\\",\\\"hed soualem\\\",\\\"jebha\\\",\\\"mohammedia\\\",\\\"nouaceur\\\",\\\"settat\\\",\\\"sidi rehal\\\",\\\"tamaris\\\",\\\"deroua\\\",\\\"tit mellil\\\",\\\"sidi hajaj settat\\\",\\\"sidi hajaj tit mlil\\\",\\\"mouhammedia\\\",\\\"berchid\\\",\\\"el mansouria\\\"]\",\"comparison_value_type\":\"LiteralValue\"},\"value_type\":\"EnvironmentScalarDefinition:String\",\"operator\":\"in?\",\"operation_type\":\"Comparison\"},\"operator\":\"OR\",\"operation_type\":\"LogicalExpression\"}"}]},{"step_id":"action-add-tag","step_position":[740,-20],"task_id":"shopify::admin::add_order_tags","task_version":"0.1","task_type":"ACTION","config_field_values":[{"config_field_id":"order_id","value":"order.id"},{"config_field_id":"tags","value":"[\\\"12livery\\\"]"}]}],"links":[{"from_step_id":"trigger-order-created","from_port_id":"output","to_step_id":"condition-city-in-list","to_port_id":"input"},{"from_step_id":"condition-city-in-list","from_port_id":"true","to_step_id":"action-add-tag","to_port_id":"input"}],"patched_fields":[]}}
-# Python
 __pycache__/
 *.py[cod]
 .env
-
-# Node / general
 node_modules/
 .DS_Store
-
-# Google credentials (DON’T commit!)
+# Google credentials (DON'T commit!)
 service_account.json
