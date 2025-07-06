@@ -44,6 +44,7 @@ function clearLocalLogs() {
   openPeriods = { main: null, break: null, extra: null };
   document.getElementById('status').innerText = 'Status: Not Clocked In';
   renderDayLog();
+  renderStats();
 }
 
 function getOpenPeriodsFromLogs(logs) {
@@ -69,6 +70,7 @@ window.onload = function() {
   document.getElementById('employeeName').innerText = '👤 ' + employeeName;
   startClock();
   renderDayLog();
+  renderStats();
 };
 
 function startClock() {
@@ -196,6 +198,7 @@ function renderDayLog() {
   document.getElementById('break-log').innerHTML = renderSection(todayLogs.break, 'break');
   document.getElementById('extra-log').innerHTML = renderSection(todayLogs.extra, 'extra');
   saveTodayLogs();
+  renderStats();
 }
 
 function getCategoryTotalMinutes(category, now = null, ignoreOpen = false) {
@@ -235,6 +238,18 @@ function formatDuration(mins) {
   return (h ? `${h}h ` : '') + (m ? `${m}min` : (h ? '' : '0 min'));
 }
 
+function renderStats() {
+  const main = getCategoryTotalMinutes('main');
+  const brk = getCategoryTotalMinutes('break');
+  const extra = getCategoryTotalMinutes('extra');
+  const net = main - brk + extra;
+  document.getElementById('stats-summary').innerHTML =
+    `<div>Main: ${formatDuration(main)}</div>` +
+    `<div>Break: ${formatDuration(brk)}</div>` +
+    `<div>Extra: ${formatDuration(extra)}</div>` +
+    `<div>Net: ${formatDuration(net)}</div>`;
+}
+
 // ===== Tabs & Sheet Data =====
 document.querySelectorAll('.tab-button').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
@@ -249,7 +264,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(div => {
     div.classList.toggle('active', div.id === 'tab-' + tab);
   });
-  if ((tab === 'sheet' || tab === 'stats' || tab === 'performance') && !sheetLoaded) {
+  if ((tab === 'sheet' || tab === 'payments' || tab === 'performance') && !sheetLoaded) {
     fetchSheetData();
   }
 }
