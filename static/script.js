@@ -419,12 +419,15 @@ function renderStats(values) {
   }
 
   const summaryHtml =
-    `<p>Worked days: <strong>${summary.worked}</strong></p>` +
-    `<p>Total hours: <strong>${formatDuration(summary.minutes)}</strong></p>` +
-    `<p>Extra hours: <strong>${formatDuration(summary.extra)}</strong></p>` +
-    `<p>Cash added: <strong>${summary.cashAdd}</strong></p>` +
-    `<p>Cash taken: <strong>${summary.cashTake}</strong></p>` +
-    `<p>Orders: <strong>${summary.orders.join(', ')}</strong></p>`;
+    `<div class="stats-summary">` +
+    `<h3>Summary</h3>` +
+    `<p><strong>Worked days:</strong> ${summary.worked}</p>` +
+    `<p><strong>Total hours:</strong> ${formatDuration(summary.minutes)}</p>` +
+    `<p><strong>Extra hours:</strong> ${formatDuration(summary.extra)}</p>` +
+    `<p><strong>Cash added:</strong> ${summary.cashAdd}</p>` +
+    `<p><strong>Cash taken:</strong> ${summary.cashTake}</p>` +
+    `<p><strong>Orders:</strong> ${summary.orders.join(', ')}</p>` +
+    `</div>`;
   document.getElementById('stats-content').innerHTML = summaryHtml;
 
   const currentCards = [];

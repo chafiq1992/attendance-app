@@ -216,11 +216,28 @@ h2 {
   cursor: pointer;
   font-size: 16px;
 }
+.stats-summary {
+  width: 90%;
+  max-width: 500px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px #0002;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.stats-summary h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #007BFF;
+}
+.stats-summary p {
+  margin: 4px 0;
+}
 .period-card {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border: 1px solid #ccc;
+  border: 1px solid #ddd;
   border-radius: 8px;
   padding: 12px;
   background: #fff;
@@ -228,10 +245,16 @@ h2 {
 }
 .period-card.archived {
   opacity: 0.7;
+  background: #f8f8f8;
+  border-left: 4px solid #9e9e9e;
+}
+.period-card.current {
+  border-left: 4px solid #007BFF;
 }
 .period-card .range {
   font-weight: bold;
   margin-bottom: 4px;
+  color: #007BFF;
 }
 #payout-history table {
   width: 100%;
@@ -240,9 +263,12 @@ h2 {
 }
 #payout-history th, #payout-history td {
   border: 1px solid #ccc;
-  padding: 4px;
+  padding: 6px;
   text-align: center;
 }
 #payout-history th {
   background: #f0f0f0;
+}
+#payout-history tr:nth-child(even) {
+  background-color: #f9f9f9;
 }
