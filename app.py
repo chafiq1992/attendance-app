@@ -18,7 +18,12 @@ server = Flask(__name__, static_folder="static", static_url_path="/static")
 # --------------------------------------------------------------------
 # 2.  Google Sheets service
 # --------------------------------------------------------------------
-sheets_service = build("sheets", "v4", credentials=config.CREDENTIALS)
+sheets_service = build(
+    "sheets",
+    "v4",
+    credentials=config.CREDENTIALS,
+    cache_discovery=False,
+)
 sheet          = sheets_service.spreadsheets()
 
 # --------------------------------------------------------------------
