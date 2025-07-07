@@ -243,7 +243,9 @@ function renderDayStats() {
   const brk = getCategoryTotalMinutes('break');
   const extra = getCategoryTotalMinutes('extra');
   const net = main - brk + extra;
-  document.getElementById('stats-summary').innerHTML =
+  const el = document.getElementById('stats-summary');
+  if (!el) return;
+  el.innerHTML =
     `<div>Main: ${formatDuration(main)}</div>` +
     `<div>Break: ${formatDuration(brk)}</div>` +
     `<div>Extra: ${formatDuration(extra)}</div>` +
@@ -264,7 +266,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(div => {
     div.classList.toggle('active', div.id === 'tab-' + tab);
   });
-  if ((tab === 'sheet' || tab === 'stats') && !sheetLoaded) {
+  if ((tab === 'sheet' || tab === 'payments' || tab === 'performance') && !sheetLoaded) {
     fetchSheetData();
   }
 }
@@ -356,9 +358,6 @@ function parseNumberList(str) {
 function renderStats(values) {
   if (!Array.isArray(values) || !values.length || !Array.isArray(values[0])) {
     document.getElementById('period-cards').innerHTML = '';
-    document.getElementById('payout-history').innerHTML = '';
-    document.getElementById('order-history').innerText = '';
-    document.getElementById('cash-summary').innerText = '';
     return;
   }
 
@@ -468,18 +467,7 @@ function renderStats(values) {
   });
   document.getElementById('period-cards').innerHTML = currentCards.join('') + archivedCards.join('');
 
-  let histHtml = '';
-  const paid = periods.filter(p => p.payout);
-  if (paid.length) {
-    histHtml += '<h4>Payout History</h4><table><thead><tr><th>Start</th><th>End</th><th>Amount</th></tr></thead><tbody>';
-    paid.forEach(p => {
-      histHtml += `<tr><td>${p.start}</td><td>${p.end}</td><td>${p.payout}</td></tr>`;
-    });
-    histHtml += '</tbody></table>';
-  }
-  document.getElementById('payout-history').innerHTML = histHtml;
-  document.getElementById('order-history').innerText = 'Orders: ' + totalOrdersList.join(', ');
-  document.getElementById('cash-summary').innerText = 'Total cash: ' + totalCash;
+  // paid periods already moved to the bottom above
 }
 
 function recordPayout() {

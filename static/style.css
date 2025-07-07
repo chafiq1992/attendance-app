@@ -214,22 +214,6 @@ h2 {
   margin-bottom: 4px;
   color: #007BFF;
 }
-#payout-history table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-#payout-history th, #payout-history td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: center;
-}
-#payout-history th {
-  background: #f0f0f0;
-}
-#payout-history tr:nth-child(even) {
-  background-color: #f9f9f9;
-}
 
 #performance-score {
   margin-top: 10px;
