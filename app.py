@@ -1,6 +1,7 @@
 import datetime as dt
 import os
 import logging
+import time
 from flask import Flask, request, send_from_directory, jsonify
 from googleapiclient.discovery import build
 import config
@@ -25,6 +26,10 @@ sheets_service = build(
     cache_discovery=False,
 )
 sheet          = sheets_service.spreadsheets()
+
+# Simple in-memory cache for sheet data
+CACHE_TTL = 60  # seconds
+SHEET_CACHE = {}
 
 # --------------------------------------------------------------------
 # 3.  Helpers
@@ -321,6 +326,12 @@ def sheet_data_route():
         return {"ok": False, "msg": "employee required"}, 400
 
     ensure_employee_sheet(employee)
+
+    now = time.time()
+    cached = SHEET_CACHE.get(employee)
+    if cached and now - cached["time"] < CACHE_TTL:
+        return jsonify(values=cached["values"])
+
     try:
         result = sheet.values().get(
             spreadsheetId=config.GOOGLE_SHEET_ID,
@@ -331,6 +342,7 @@ def sheet_data_route():
         return jsonify(error="Failed retrieving sheet data"), 500
 
     values = result.get("values", [])
+    SHEET_CACHE[employee] = {"time": now, "values": values}
     return jsonify(values=values)
 
 # Cloud Run health check
