@@ -1,5 +1,6 @@
-// Get employee name from ?employee= query parameter
-var employeeName = new URLSearchParams(window.location.search).get('employee') || '';
+// Get employee name from query parameter (?employee= or ?driver=)
+var params = new URLSearchParams(window.location.search);
+var employeeName = params.get('employee') || params.get('driver') || '';
 let breakStartTime = null, extraStartTime = null, mainStartTime = null;
 let pendingAction = null;
 
