@@ -1,6 +1,8 @@
 import AttendancePad from './AttendancePad'
 import AdminDashboard from './AdminDashboard'
 import EmployeeDashboard from './EmployeeDashboard'
+import MonthlySheets from './MonthlySheets'
+import PeriodSummary from './PeriodSummary'
 import { motion, useReducedMotion } from 'framer-motion'
 
 export default function App() {
@@ -11,6 +13,12 @@ export default function App() {
   }
   if (path.startsWith('/employee-dashboard')) {
     return <EmployeeDashboard />
+  }
+  if (path.startsWith('/monthly-sheets')) {
+    return <MonthlySheets />
+  }
+  if (path.startsWith('/period-summary')) {
+    return <PeriodSummary />
   }
   return (
     <motion.div

@@ -28,3 +28,17 @@ def test_employee_dashboard(client):
     assert resp.status_code == 200
     assert resp.mimetype == "text/html"
     assert resp.data == EXPECTED_CONTENT
+
+
+def test_monthly_sheets(client):
+    resp = client.get("/monthly-sheets")
+    assert resp.status_code == 200
+    assert resp.mimetype == "text/html"
+    assert resp.data == EXPECTED_CONTENT
+
+
+def test_period_summary(client):
+    resp = client.get("/period-summary")
+    assert resp.status_code == 200
+    assert resp.mimetype == "text/html"
+    assert resp.data == EXPECTED_CONTENT
