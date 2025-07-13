@@ -9,8 +9,12 @@ module.exports = {
     extend: {
       colors: {
         primary: 'var(--color-primary)',
-        background: 'var(--color-bg)',
-        foreground: 'var(--color-foreground)'
+        background: 'var(--color-bg-start)',
+        foreground: 'var(--color-foreground)',
+        emerald: 'var(--color-emerald)',
+        coral: 'var(--color-coral)',
+        sapphire: 'var(--color-sapphire)',
+        violet: 'var(--color-violet)'
       },
     },
   },

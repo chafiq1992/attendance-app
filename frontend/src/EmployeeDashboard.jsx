@@ -56,7 +56,7 @@ export default function EmployeeDashboard() {
         <Line data={lineData} />
       </div>
       <Progress value={progress} label={`Hours: ${data.total_hours}/${goal}`} />
-      <table className="min-w-full text-sm">
+      <table className="min-w-full text-sm table-hover">
         <thead>
           <tr>
             <th className="border px-2">Day</th>
