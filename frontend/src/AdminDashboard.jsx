@@ -26,8 +26,9 @@ export default function AdminDashboard() {
   })
 
   const mutation = useMutation({
-    mutationFn: async ({ id, timestamp }) => {
-      await axios.patch(`/events/${id}`, { timestamp })
+    mutationFn: async (body) => {
+      const { id, ...data } = body
+      await axios.patch(`/events/${id}`, data)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['events', monthStr] })
