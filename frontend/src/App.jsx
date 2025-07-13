@@ -1,8 +1,17 @@
 import AttendancePad from './AttendancePad'
+import AdminDashboard from './AdminDashboard'
+import EmployeeDashboard from './EmployeeDashboard'
 import { motion, useReducedMotion } from 'framer-motion'
 
 export default function App() {
   const shouldReduce = useReducedMotion()
+  const path = window.location.pathname
+  if (path.startsWith('/admin-dashboard')) {
+    return <AdminDashboard />
+  }
+  if (path.startsWith('/employee-dashboard')) {
+    return <EmployeeDashboard />
+  }
   return (
     <motion.div
       initial={shouldReduce ? false : { opacity: 0 }}
