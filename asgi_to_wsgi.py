@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from http import HTTPStatus
 from typing import Iterable, Tuple, Callable, List
 
 
 class AsgiToWsgi:
-    """Minimal ASGI-to-WSGI adapter."""
+    """Minimal ASGI-to-WSGI adapter.
+
+    A single event loop is reused for all requests to avoid issues with
+    database drivers that bind connections to the loop they were created on.
+    """
 
     def __init__(self, app: Callable) -> None:
         self.app = app
+        self.loop = asyncio.new_event_loop()
+        self._lock = threading.Lock()
 
     def __call__(self, environ: dict, start_response: Callable) -> Iterable[bytes]:
         method = environ.get("REQUEST_METHOD", "GET")
@@ -75,7 +82,8 @@ class AsgiToWsgi:
         async def run_app() -> None:
             await self.app(scope, receive, send)
 
-        asyncio.run(run_app())
+        with self._lock:
+            self.loop.run_until_complete(run_app())
 
         status_line = f"{response_status} {HTTPStatus(response_status).phrase}"
         start_response(status_line, response_headers)
