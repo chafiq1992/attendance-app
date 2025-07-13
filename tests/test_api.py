@@ -21,9 +21,13 @@ async def test_event_lifecycle(client):
     assert any(e["id"] == event_id for e in events)
 
     # update
-    resp = await client.patch(f"/events/{event_id}", params={"kind": "out"})
+    resp = await client.patch(f"/events/{event_id}", json={"kind": "out"})
     assert resp.status_code == 200
     assert resp.json()["id"] == event_id
+
+    resp = await client.get("/events")
+    updated = [e for e in resp.json() if e["id"] == event_id][0]
+    assert updated["kind"] == "out"
 
     # delete
     resp = await client.delete(f"/events/{event_id}")
@@ -37,7 +41,7 @@ async def test_event_lifecycle(client):
 
 @pytest.mark.asyncio
 async def test_not_found(client):
-    resp = await client.patch("/events/9999", params={"kind": "out"})
+    resp = await client.patch("/events/9999", json={"kind": "out"})
     assert resp.status_code == 404
     resp = await client.delete("/events/9999")
     assert resp.status_code == 404

@@ -4,6 +4,7 @@ from typing import List, Optional, Dict
 import calendar
 
 from fastapi import FastAPI, HTTPException, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy import select, update, delete, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,12 @@ async def on_startup() -> None:
 async def get_session() -> AsyncSession:
     async with AsyncSessionLocal() as session:
         yield session
+
+
+class EventUpdate(BaseModel):
+    employee_id: Optional[str] | None = None
+    kind: Optional[str] | None = None
+    timestamp: Optional[datetime] | None = None
 
 @app.post("/events", response_model=dict)
 async def create_event(
@@ -74,9 +81,7 @@ async def list_events(
 @app.patch("/events/{event_id}", response_model=dict)
 async def update_event(
     event_id: int,
-    employee_id: Optional[str] = None,
-    kind: Optional[str] = None,
-    timestamp: Optional[datetime] = None,
+    payload: EventUpdate,
     session: AsyncSession = Depends(get_session),
 ):
     stmt = select(Event).where(Event.id == event_id)
@@ -84,12 +89,12 @@ async def update_event(
     event = result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    if employee_id is not None:
-        event.employee_id = employee_id
-    if kind is not None:
-        event.kind = kind
-    if timestamp is not None:
-        event.timestamp = timestamp
+    if payload.employee_id is not None:
+        event.employee_id = payload.employee_id
+    if payload.kind is not None:
+        event.kind = payload.kind
+    if payload.timestamp is not None:
+        event.timestamp = payload.timestamp
     await session.commit()
     await session.refresh(event)
     return {"id": event.id}
