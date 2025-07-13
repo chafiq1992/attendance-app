@@ -78,3 +78,16 @@ To undo the most recent migration:
 ```bash
 alembic downgrade -1
 ```
+
+## Running Tests
+
+The test suite spins up a temporary Postgres 15 container using `testcontainers`.
+Install the extra testing dependencies and run `pytest` with coverage:
+
+```bash
+pip install -r requirements.txt
+pip install pytest pytest-asyncio pytest-cov testcontainers[postgres] httpx
+pytest --cov
+```
+
+Coverage should report at least 80%.
