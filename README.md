@@ -37,6 +37,7 @@ The app pulls configuration from a few environment variables:
    ```
 
 Visit `http://localhost:8080/?employee=YourName` to interact with the app.
+The FastAPI API is mounted under `/api`, e.g. `http://localhost:8080/api/events`.
 
 ### Frontend
 
@@ -64,6 +65,7 @@ chmod +x deploy.sh
 The script uploads the service account key to Secret Manager and sets the
 `GOOGLE_SHEET_ID`, `GCP_SA_B64`, and `DATABASE_URL` variables for the Cloud Run
 service.
+The FastAPI API will be reachable under `/api` on the deployed URL.
 
 ## Database Migrations
 

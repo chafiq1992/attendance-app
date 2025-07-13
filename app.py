@@ -5,6 +5,8 @@ import time
 import psycopg2
 from psycopg2 import sql
 from flask import Flask, request, send_from_directory, jsonify
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from asgiref.wsgi import AsgiToWsgi
 from googleapiclient.discovery import build
 import config
 from config import CREDENTIALS        # for googleapiclient
@@ -17,6 +19,15 @@ logger = logging.getLogger(__name__)
 # 1.  Flask setup
 # --------------------------------------------------------------------
 server = Flask(__name__, static_folder="static", static_url_path="/static")
+
+# Mount FastAPI under /api using ASGI -> WSGI adapter
+try:
+    from api.main import app as fastapi_app
+    server.wsgi_app = DispatcherMiddleware(
+        server.wsgi_app, {"/api": AsgiToWsgi(fastapi_app)}
+    )
+except Exception:  # noqa: BLE001
+    logger.exception("Failed mounting FastAPI app")
 
 # --------------------------------------------------------------------
 # 2.  Google Sheets service
