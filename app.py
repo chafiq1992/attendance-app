@@ -345,6 +345,42 @@ def sheet_data_route():
     SHEET_CACHE[employee] = {"time": now, "values": values}
     return jsonify(values=values)
 
+
+# --------------------------------------------------------------------
+# 5.  Admin endpoints
+# --------------------------------------------------------------------
+
+@server.route("/admin")
+def admin_index():
+    """Serve the admin dashboard."""
+    return send_from_directory("static", "admin.html")
+
+
+@server.route("/admin/employees")
+def admin_employees():
+    """List all employee sheet names."""
+    ssid = config.GOOGLE_SHEET_ID
+    sh = gc.open_by_key(ssid)
+    names = [ws.title for ws in sh.worksheets()]
+    return jsonify(employees=names)
+
+
+@server.route("/admin/attendance/<employee>")
+def admin_attendance(employee: str):
+    """Return raw sheet values for the given employee."""
+    ensure_employee_sheet(employee)
+    try:
+        result = sheet.values().get(
+            spreadsheetId=config.GOOGLE_SHEET_ID,
+            range=f"{employee}!A1:AG",
+        ).execute()
+    except Exception:
+        logger.exception("Failed fetching sheet data for %s", employee)
+        return jsonify(error="Failed retrieving sheet data"), 500
+
+    values = result.get("values", [])
+    return jsonify(values=values)
+
 # Cloud Run health check
 @server.route("/healthz")
 def health():
