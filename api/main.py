@@ -65,6 +65,7 @@ async def list_events(
         stmt = stmt.where(*conditions)
     stmt = stmt.order_by(Event.timestamp)
     result = await session.execute(stmt)
+    rows = result.scalars().all()
     events = [
         {
             "id": e.id,
@@ -74,7 +75,7 @@ async def list_events(
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None,
         }
-        for e in result.scalars()
+        for e in rows
     ]
     return events
 
@@ -165,7 +166,7 @@ async def get_summary(
         .order_by(Event.timestamp)
     )
     result = await session.execute(stmt)
-    events = list(result.scalars())
+    events = result.scalars().all()
 
     summary = _summarize_events(events, year, m)
     return summary
