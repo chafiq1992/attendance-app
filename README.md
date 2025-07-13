@@ -87,8 +87,8 @@ The test suite spins up a temporary Postgres 15 container using `testcontainers`
 Install the extra testing dependencies and run `pytest` with coverage:
 
 ```bash
-pip install -r requirements.txt
-pip install pytest pytest-asyncio pytest-cov testcontainers[postgres] httpx
+pip install -r requirements.txt -r requirements-dev.txt
+pip install httpx
 pytest --cov
 ```
 
