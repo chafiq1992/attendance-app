@@ -6,10 +6,10 @@ import psycopg2
 from psycopg2 import sql
 from flask import Flask, request, send_from_directory, jsonify
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
-from asgiref.wsgi import AsgiToWsgi
+# from asgiref.wsgi import AsgiToWsgi  # Removed in newer asgiref versions
+from asgi_to_wsgi import AsgiToWsgi
 from googleapiclient.discovery import build
 import config
-from config import CREDENTIALS        # for googleapiclient
 from config import gc                 # gspread client
 
 logging.basicConfig(level=logging.INFO)
