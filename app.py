@@ -4,7 +4,7 @@ import logging
 import time
 import psycopg2
 from psycopg2 import sql
-from flask import Flask, request, send_from_directory, jsonify
+from flask import Flask, request, jsonify
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from asgi_to_wsgi import AsgiToWsgi
 
@@ -14,7 +14,11 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 # 1.  Flask setup
 # --------------------------------------------------------------------
-server = Flask(__name__)
+# Serve compiled frontend assets from frontend/dist
+dist_path = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+server = Flask(
+    __name__, static_folder=dist_path, static_url_path="/"
+)
 
 # Mount FastAPI under /api using ASGI -> WSGI adapter
 try:
@@ -141,10 +145,9 @@ def record_value(employee: str, label: str, day: int, value: str):
 @server.route("/")
 def index():
     """Serve the React build if available, otherwise show a placeholder."""
-    dist_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
-    index_file = os.path.join(dist_dir, "index.html")
+    index_file = os.path.join(dist_path, "index.html")
     if os.path.exists(index_file):
-        return send_from_directory(dist_dir, "index.html")
+        return server.send_static_file("index.html")
     return jsonify(message="Attendance backend"), 200
 
 @server.route("/attendance", methods=["POST"])
