@@ -121,6 +121,70 @@ def col_to_letter(col: int) -> str:
     return letters
 
 
+def _get_sheet_values(employee: str):
+    """Return entire sheet values for the employee with caching."""
+    ensure_employee_sheet(employee)
+    ensure_current_month_table(employee)
+
+    now = time.time()
+    cached = SHEET_CACHE.get(employee)
+    if cached and now - cached["time"] < CACHE_TTL:
+        return cached["values"]
+
+    try:
+        result = sheet.values().get(
+            spreadsheetId=config.GOOGLE_SHEET_ID,
+            range=f"{employee}!A1:AG",
+        ).execute()
+        values = result.get("values", [])
+    except Exception:
+        logger.exception("Failed fetching sheet data for %s", employee)
+        raise
+
+    SHEET_CACHE[employee] = {"time": now, "values": values}
+    return values
+
+
+def month_label_from_param(month_str: str | None) -> str:
+    """Convert a YYYY-MM string to "Month YYYY" label."""
+    if not month_str:
+        now = dt.datetime.now(dt.timezone.utc).astimezone(
+            dt.timezone(dt.timedelta(hours=0))
+        )
+        return now.strftime("%B %Y")
+    try:
+        dt_obj = dt.datetime.strptime(month_str, "%Y-%m")
+        return dt_obj.strftime("%B %Y")
+    except Exception:
+        return month_str
+
+
+def get_month_values(employee: str, month_label: str):
+    """Return rows for the given month label."""
+    values = _get_sheet_values(employee)
+    for i, row in enumerate(values):
+        first = (row[0] or "").strip() if row else ""
+        if first.lower() == month_label.lower():
+            return values[i : i + 16]
+    return []
+
+
+def get_archive_months(employee: str):
+    """Return list of previous months with their values."""
+    values = _get_sheet_values(employee)
+    months = []
+    r = 0
+    while r < len(values):
+        row = values[r] if r < len(values) else []
+        first = (row[0] or "").strip() if row else ""
+        if first and first.lower() != "name":
+            months.append({"month": first, "values": values[r : r + 16]})
+            r += 16
+        else:
+            r += 1
+    return months[1:] if months else []
+
+
 def record_time(employee: str, action: str, day: int):
     """Write today’s time into the proper cell."""
     now = dt.datetime.now(dt.timezone.utc).astimezone(
@@ -318,6 +382,30 @@ def order():
 
     return jsonify(ok=True, msg="Order recorded")
 
+
+@server.route("/month_schedule")
+def month_schedule():
+    """Return rows for a specific employee and month."""
+    employee = request.args.get("employee", "").strip()
+    month_param = request.args.get("month", "").strip()
+    if not employee:
+        return {"ok": False, "msg": "employee required"}, 400
+
+    label = month_label_from_param(month_param)
+    values = get_month_values(employee, label)
+    return jsonify(values=values)
+
+
+@server.route("/archive")
+def archive():
+    """Return previous months for an employee."""
+    employee = request.args.get("employee", "").strip()
+    if not employee:
+        return {"ok": False, "msg": "employee required"}, 400
+
+    months = get_archive_months(employee)
+    return jsonify(months=months)
+
 @server.route("/sheet_data")
 def sheet_data_route():
     """Return raw sheet values for the given employee."""
@@ -325,24 +413,8 @@ def sheet_data_route():
     if not employee:
         return {"ok": False, "msg": "employee required"}, 400
 
-    ensure_employee_sheet(employee)
-
-    now = time.time()
-    cached = SHEET_CACHE.get(employee)
-    if cached and now - cached["time"] < CACHE_TTL:
-        return jsonify(values=cached["values"])
-
-    try:
-        result = sheet.values().get(
-            spreadsheetId=config.GOOGLE_SHEET_ID,
-            range=f"{employee}!A1:AG",
-        ).execute()
-    except Exception:
-        logger.exception("Failed fetching sheet data for %s", employee)
-        return jsonify(error="Failed retrieving sheet data"), 500
-
-    values = result.get("values", [])
-    SHEET_CACHE[employee] = {"time": now, "values": values}
+    month_label = month_label_from_param(None)
+    values = get_month_values(employee, month_label)
     return jsonify(values=values)
 
 # Cloud Run health check

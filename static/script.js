@@ -272,8 +272,13 @@ function switchTab(tab) {
   }
 }
 
-function fetchSheetData() {
-  fetch('/sheet_data?employee=' + encodeURIComponent(employeeName))
+function fetchSheetData(month) {
+  const now = month ? new Date(month) : new Date();
+  const mStr = (typeof month === 'string') ? month :
+    now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const url = '/month_schedule?employee=' + encodeURIComponent(employeeName) +
+              '&month=' + encodeURIComponent(mStr);
+  fetch(url)
     .then(r => {
       if (!r.ok) {
         return r.text().then(t => {
