@@ -1,6 +1,8 @@
 # Attendance App
 
-A lightweight Flask application for tracking employee attendance. Each employee has their own sheet/tab inside a Google Sheets spreadsheet. Employees can check in, start breaks, log work outcomes, and more, all via a simple web UI.
+A lightweight Flask application for tracking employee attendance. Each employee
+has their own sheet/tab inside a Google Sheets spreadsheet. Employees can check
+in, start breaks, log work outcomes, and more, all via a simple web UI.
 
 ## Required Environment Variables
 
@@ -11,6 +13,8 @@ The app pulls configuration from a few environment variables:
 - `DATABASE_URL` – Postgres connection string used by `db.get_engine()`.
 
 ## Running Locally
+
+### Backend
 
 1. Install Python dependencies:
 
@@ -34,13 +38,29 @@ The app pulls configuration from a few environment variables:
 
 Visit `http://localhost:8080/?employee=YourName` to interact with the app.
 
+### Frontend
+
+The React frontend lives in the `frontend/` directory. To start the Vite dev
+server:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The app will be available at `http://localhost:3000`.
+
 ## Deploying
 
-The `deploy.sh` script builds a Docker image and deploys it to Cloud Run. Edit the variables at the top of the script, then run:
+The `deploy.sh` script builds a Docker image and deploys it to Cloud Run. Edit the
+variables at the top of the script, then run:
 
 ```bash
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-The script uploads the service account key to Secret Manager and sets the `GOOGLE_SHEET_ID`, `GCP_SA_B64`, and `DATABASE_URL` variables for the Cloud Run service.
+The script uploads the service account key to Secret Manager and sets the
+`GOOGLE_SHEET_ID`, `GCP_SA_B64`, and `DATABASE_URL` variables for the Cloud Run
+service.
