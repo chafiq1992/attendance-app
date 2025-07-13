@@ -41,3 +41,23 @@ async def test_not_found(client):
     assert resp.status_code == 404
     resp = await client.delete("/events/9999")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_summary(client):
+    ts_in = datetime(2024, 1, 1, 9, tzinfo=timezone.utc)
+    ts_out = datetime(2024, 1, 1, 17, tzinfo=timezone.utc)
+    await client.post(
+        "/events",
+        params={"employee_id": "bob", "kind": "clockin", "timestamp": ts_in.isoformat()},
+    )
+    await client.post(
+        "/events",
+        params={"employee_id": "bob", "kind": "clockout", "timestamp": ts_out.isoformat()},
+    )
+
+    resp = await client.get("/summary", params={"employee_id": "bob", "month": "2024-01"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_hours"] == 8.0
+    assert data["hours_per_day"]["1"] == 8.0

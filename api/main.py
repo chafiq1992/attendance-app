@@ -1,6 +1,7 @@
 from __future__ import annotations
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional, Dict
+import calendar
 
 from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy import select, update, delete, func, and_
@@ -101,6 +102,68 @@ async def delete_event(event_id: int, session: AsyncSession = Depends(get_sessio
         raise HTTPException(status_code=404, detail="Event not found")
     await session.commit()
     return {"ok": True}
+
+
+def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, object]:
+    days_in_month = calendar.monthrange(year, month)[1]
+    hours_per_day: Dict[str, float] = {str(d): 0.0 for d in range(1, days_in_month + 1)}
+    present_days = set()
+
+    by_day: Dict[int, List[Event]] = {}
+    for e in events:
+        day = e.timestamp.astimezone(timezone.utc).day
+        by_day.setdefault(day, []).append(e)
+
+    for day, evts in by_day.items():
+        evts.sort(key=lambda e: e.timestamp)
+        clock_in: datetime | None = None
+        total_seconds = 0.0
+        for ev in evts:
+            k = ev.kind
+            if k in {"clockin", "in"}:
+                clock_in = ev.timestamp
+            elif k in {"clockout", "out"} and clock_in:
+                total_seconds += (ev.timestamp - clock_in).total_seconds()
+                clock_in = None
+        if total_seconds > 0:
+            present_days.add(day)
+            hours_per_day[str(day)] = round(total_seconds / 3600, 2)
+
+    attendance_rate = len(present_days) / days_in_month if days_in_month else 0
+    total_hours = round(sum(hours_per_day.values()), 2)
+    return {
+        "attendance_rate": attendance_rate,
+        "hours_per_day": hours_per_day,
+        "total_hours": total_hours,
+    }
+
+
+@app.get("/summary", response_model=dict)
+async def get_summary(
+    employee_id: str = Query(...),
+    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    session: AsyncSession = Depends(get_session),
+):
+    year, m = map(int, month.split("-"))
+    start = datetime(year, m, 1, tzinfo=timezone.utc)
+    end_month = m + 1 if m < 12 else 1
+    end_year = year if m < 12 else year + 1
+    end = datetime(end_year, end_month, 1, tzinfo=timezone.utc)
+
+    stmt = (
+        select(Event)
+        .where(
+            Event.employee_id == employee_id,
+            Event.timestamp >= start,
+            Event.timestamp < end,
+        )
+        .order_by(Event.timestamp)
+    )
+    result = await session.execute(stmt)
+    events = list(result.scalars())
+
+    summary = _summarize_events(events, year, m)
+    return summary
 
 # Expose app for uvicorn/gunicorn
 __all__ = ["app"]
