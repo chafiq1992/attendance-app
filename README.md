@@ -4,10 +4,11 @@ A lightweight Flask application for tracking employee attendance. Each employee 
 
 ## Required Environment Variables
 
-The app pulls configuration from two environment variables:
+The app pulls configuration from a few environment variables:
 
 - `GOOGLE_SHEET_ID` – ID of the Google Sheet that stores attendance data.
 - `GCP_SA_B64` – Base64-encoded service account JSON with access to the sheet.
+- `DATABASE_URL` – Postgres connection string used by `db.get_engine()`.
 
 ## Running Locally
 
@@ -22,6 +23,7 @@ The app pulls configuration from two environment variables:
    ```bash
    export GOOGLE_SHEET_ID=your_spreadsheet_id
    export GCP_SA_B64=$(base64 -w0 service_account.json)
+   export DATABASE_URL=postgresql://user:pass@localhost/dbname
    ```
 
 3. Start the server:
@@ -41,4 +43,4 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
-The script uploads the service account key to Secret Manager and sets the `GOOGLE_SHEET_ID` and `GCP_SA_B64` variables for the Cloud Run service.
+The script uploads the service account key to Secret Manager and sets the `GOOGLE_SHEET_ID`, `GCP_SA_B64`, and `DATABASE_URL` variables for the Cloud Run service.
