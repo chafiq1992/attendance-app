@@ -1,17 +1,18 @@
 # Attendance App
 
 A lightweight Flask application for tracking employee attendance backed by a
-Postgres database hosted on Supabase. Employees can check in, start breaks, log
+Postgres database. You can point `DATABASE_URL` at any Postgres host, including
+Supabase which is used purely as a managed Postgres provider. Employees can check in, start breaks, log
 work outcomes and more, all via a simple web UI.
 
 ## Required Environment Variables
 
-Configure the backend with your Supabase credentials using these variables:
+Set up the backend with a Postgres connection string:
 
-- `SUPABASE_URL` – URL of your Supabase project.
-- `SUPABASE_KEY` – service API key for the project.
-- `DATABASE_URL` – optional Postgres connection string overriding
-  `SUPABASE_URL`.
+- `DATABASE_URL` – Postgres connection string. This can point to any
+  reachable database instance and may reference Supabase's Postgres service.
+- `SUPABASE_URL` – optional shorthand containing just the Supabase project URL
+  if you prefer not to embed credentials in `DATABASE_URL`.
 
 ## Running Locally
 
@@ -26,9 +27,8 @@ Configure the backend with your Supabase credentials using these variables:
 2. Export the environment variables:
 
    ```bash
-   export SUPABASE_URL=https://your-project.supabase.co
-   export SUPABASE_KEY=your_service_key
-   export DATABASE_URL=postgresql://user:pass@localhost/dbname  # optional
+   export DATABASE_URL=postgresql://user:pass@localhost/dbname
+   export SUPABASE_URL=https://your-project.supabase.co  # optional convenience
    ```
 
 3. Start the server:
@@ -67,8 +67,8 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
-The script sets the `SUPABASE_URL`, `SUPABASE_KEY` and `DATABASE_URL`
-environment variables for the Cloud Run service.
+The script sets the `DATABASE_URL` (and optionally `SUPABASE_URL`) environment
+variables for the Cloud Run service.
 The script prints the service URL when deployment completes. Use that
 `https://<your-cloud-run-url>` to access the app. The FastAPI API will be
 reachable under `/api` on the deployed URL.
@@ -99,3 +99,4 @@ pytest --cov
 ```
 
 Coverage should report at least 80%.
+

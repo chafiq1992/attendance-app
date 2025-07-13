@@ -26,10 +26,9 @@ REPO="apps"                                     # Artifact Registry repo name
 IMAGE_NAME="attendance-app"
 SERVICE_ACCOUNT="attendance-run-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# Supabase connection details
+# Supabase connection URL (optional convenience)
 SUPABASE_URL="https://your-project.supabase.co"
-SUPABASE_KEY="YOUR_SUPABASE_SERVICE_KEY"
-# Optional Postgres connection string overriding SUPABASE_URL
+# Postgres connection string; can point to Supabase
 DATABASE_URL=""
 # ══════════════════════════════════════════════════════════════════
 
@@ -63,7 +62,7 @@ gcloud run deploy "$APP_NAME" \
   --platform managed \
   --allow-unauthenticated \
   --service-account "$SERVICE_ACCOUNT" \
-  --set-env-vars "SUPABASE_URL=${SUPABASE_URL},SUPABASE_KEY=${SUPABASE_KEY},DATABASE_URL=${DATABASE_URL}" \
+  --set-env-vars "DATABASE_URL=${DATABASE_URL},SUPABASE_URL=${SUPABASE_URL}" \
   --port 8080
 
 # ── Show service URL ─────────────────────────────────────────────
