@@ -12,6 +12,8 @@
   --color-coral: #f87171;
   --color-sapphire: #3b82f6;
   --color-violet: #8b5cf6;
+  --motion-curve: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-duration: 200ms;
 }
 
 [data-theme='dark'] {
@@ -31,7 +33,8 @@ body {
 }
 
 .btn {
-  @apply relative overflow-hidden rounded-xl shadow-lg text-white font-semibold h-24 flex flex-col items-center justify-center transition-all active:translate-y-[3px];
+  @apply relative overflow-hidden rounded-xl shadow-lg text-white font-semibold h-24 flex flex-col items-center justify-center;
+  transition: all var(--motion-duration) var(--motion-curve);
 }
 
 .btn-emerald {
@@ -59,7 +62,7 @@ body {
 .table-hover tbody tr:hover {
   background-color: rgba(255, 255, 255, 0.05);
   transform: translateX(4px);
-  transition: all 200ms;
+  transition: all var(--motion-duration) var(--motion-curve);
 }
 
 .ripple {
@@ -67,7 +70,7 @@ body {
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.4);
   transform: scale(0);
-  animation: ripple 200ms ease-out;
+  animation: ripple var(--motion-duration) var(--motion-curve);
   pointer-events: none;
 }
 
