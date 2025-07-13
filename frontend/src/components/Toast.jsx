@@ -12,21 +12,27 @@ export function ToastProvider({ children }) {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3000)
   }, [])
 
+  const icons = {
+    success: '✅',
+    error: '❌',
+  }
+
   return (
     <ToastContext.Provider value={addToast}>
       {children}
-      <div className="fixed top-4 right-4 space-y-2 z-50">
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 space-y-2 z-50">
         <AnimatePresence>
           {toasts.map((toast) => (
             <motion.div
               key={toast.id}
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.2 }}
-              className={`rounded-md px-4 py-2 shadow text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}
+              className={`rounded-full px-4 py-2 shadow text-white flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}
             >
-              {toast.message}
+              <span>{icons[toast.type] || 'ℹ️'}</span>
+              <span>{toast.message}</span>
             </motion.div>
           ))}
         </AnimatePresence>

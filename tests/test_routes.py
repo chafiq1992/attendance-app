@@ -42,3 +42,10 @@ def test_period_summary(client):
     assert resp.status_code == 200
     assert resp.mimetype == "text/html"
     assert resp.data == EXPECTED_CONTENT
+
+
+def test_performance(client):
+    resp = client.get("/performance")
+    assert resp.status_code == 200
+    assert resp.mimetype == "text/html"
+    assert resp.data == EXPECTED_CONTENT
