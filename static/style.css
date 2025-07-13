@@ -224,3 +224,24 @@ h2 {
 
 #performance-score.good { color: #4CAF50; }
 #performance-score.bad { color: #f44336; }
+
+/* Admin dashboard */
+#employee-list {
+  margin: 20px 0;
+}
+#employee-list ul {
+  list-style: none;
+  padding: 0;
+}
+.emp-btn {
+  padding: 6px 12px;
+  margin-bottom: 6px;
+  border: none;
+  background: #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.emp-btn:hover {
+  background: #d0d0d0;
+}
