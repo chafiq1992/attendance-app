@@ -39,6 +39,7 @@ Set up the backend with a Postgres connection string:
 
 Visit `https://<your-cloud-run-url>/?employee=YourName` to interact with the app.
 The FastAPI API is mounted under `/api`, e.g. `https://<your-cloud-run-url>/api/events`.
+All backend API routes are served under this `/api` prefix, so the frontend sends requests to paths like `/api/events` and `/api/summary`.
 
 All other GET routes that don't begin with `/api`, `/attendance`, `/payout` or
 `/healthz` return the compiled React app from `frontend/dist/index.html`. This

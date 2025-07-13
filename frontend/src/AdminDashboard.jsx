@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const { data } = useQuery({
     queryKey: ['events', monthStr],
     queryFn: async () => {
-      const res = await axios.get('/events', { params: { month: monthStr } })
+      const res = await axios.get('/api/events', { params: { month: monthStr } })
       return res.data
     },
   })
@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   const mutation = useMutation({
     mutationFn: async (body) => {
       const { id, ...data } = body
-      await axios.patch(`/events/${id}`, data)
+      await axios.patch(`/api/events/${id}`, data)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['events', monthStr] })
