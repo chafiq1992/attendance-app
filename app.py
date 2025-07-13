@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 # 1.  Flask setup
 # --------------------------------------------------------------------
-server = Flask(__name__, static_folder="static", static_url_path="/static")
+server = Flask(__name__)
 
 # Mount FastAPI under /api using ASGI -> WSGI adapter
 try:
@@ -140,8 +140,12 @@ def record_value(employee: str, label: str, day: int, value: str):
 # --------------------------------------------------------------------
 @server.route("/")
 def index():
-    """Static index with query-string ?employee=Name if desired."""
-    return send_from_directory("static", "index.html")
+    """Serve the React build if available, otherwise show a placeholder."""
+    dist_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+    index_file = os.path.join(dist_dir, "index.html")
+    if os.path.exists(index_file):
+        return send_from_directory(dist_dir, "index.html")
+    return jsonify(message="Attendance backend"), 200
 
 @server.route("/attendance", methods=["POST"])
 def attendance():
