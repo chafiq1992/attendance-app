@@ -1,15 +1,15 @@
 # Attendance App
 
 A lightweight Flask application for tracking employee attendance backed by a
-Postgres database (for example on Supabase). Employees can check in, start
-breaks, log work outcomes and more, all via a simple web UI.
+Postgres database hosted on Supabase. Employees can check in, start breaks, log
+work outcomes and more, all via a simple web UI.
 
 ## Required Environment Variables
 
-The app pulls configuration from a few environment variables:
+Configure the backend with your Supabase credentials using these variables:
 
-- `SUPABASE_URL` – Postgres connection string.
-- `SUPABASE_KEY` – service API key for Supabase (if required).
+- `SUPABASE_URL` – URL of your Supabase project.
+- `SUPABASE_KEY` – service API key for the project.
 - `DATABASE_URL` – optional Postgres connection string overriding
   `SUPABASE_URL`.
 
@@ -26,8 +26,9 @@ The app pulls configuration from a few environment variables:
 2. Export the environment variables:
 
    ```bash
-   export SUPABASE_URL=postgresql://user:pass@localhost/dbname
+   export SUPABASE_URL=https://your-project.supabase.co
    export SUPABASE_KEY=your_service_key
+   export DATABASE_URL=postgresql://user:pass@localhost/dbname  # optional
    ```
 
 3. Start the server:
@@ -41,16 +42,19 @@ The FastAPI API is mounted under `/api`, e.g. `https://<your-cloud-run-url>/api/
 
 ### Frontend
 
-The React frontend lives in the `frontend/` directory. To start the Vite dev
-server:
+The React frontend lives in the `frontend/` directory.
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev     # development mode
+npm run build   # production build
 ```
 
-The app will be available at `https://<your-cloud-run-url>`.
+During development the Vite dev server serves the app on `http://localhost:5173`
+and API requests are sent to the backend running on `http://localhost:8080`.
+When deploying, the backend will serve the compiled files from
+`frontend/dist` so the frontend and API share the same URL.
 
 ## Deploying
 
@@ -62,8 +66,8 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
-The script uploads the service account key to Secret Manager and sets the
-`SUPABASE_URL` and `SUPABASE_KEY` variables for the Cloud Run service.
+The script sets the `SUPABASE_URL`, `SUPABASE_KEY` and `DATABASE_URL`
+environment variables for the Cloud Run service.
 The script prints the service URL when deployment completes. Use that
 `https://<your-cloud-run-url>` to access the app. The FastAPI API will be
 reachable under `/api` on the deployed URL.
