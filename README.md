@@ -36,8 +36,8 @@ The app pulls configuration from a few environment variables:
    gunicorn --bind 0.0.0.0:8080 app:server
    ```
 
-Visit `http://localhost:8080/?employee=YourName` to interact with the app.
-The FastAPI API is mounted under `/api`, e.g. `http://localhost:8080/api/events`.
+Visit `https://<your-cloud-run-url>/?employee=YourName` to interact with the app.
+The FastAPI API is mounted under `/api`, e.g. `https://<your-cloud-run-url>/api/events`.
 
 ### Frontend
 
@@ -50,7 +50,7 @@ npm install
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`.
+The app will be available at `https://<your-cloud-run-url>`.
 
 ## Deploying
 
@@ -65,7 +65,9 @@ chmod +x deploy.sh
 The script uploads the service account key to Secret Manager and sets the
 `GOOGLE_SHEET_ID`, `GCP_SA_B64`, and `DATABASE_URL` variables for the Cloud Run
 service.
-The FastAPI API will be reachable under `/api` on the deployed URL.
+The script prints the service URL when deployment completes. Use that
+`https://<your-cloud-run-url>` to access the app. The FastAPI API will be
+reachable under `/api` on the deployed URL.
 
 ## Database Migrations
 
