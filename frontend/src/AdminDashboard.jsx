@@ -79,7 +79,7 @@ export default function AdminDashboard() {
       <h2 className="text-xl font-bold">Admin Dashboard</h2>
       <DayPicker mode="single" selected={month} onMonthChange={setMonth} onSelect={setMonth} captionLayout="dropdown" />
       <div className="overflow-auto">
-        <table className="min-w-full text-sm">
+        <table className="min-w-full text-sm table-hover">
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>

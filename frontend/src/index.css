@@ -3,19 +3,63 @@
 @tailwind utilities;
 
 :root {
+  font-family: Inter, system-ui, sans-serif;
   --color-primary: #004AAD;
-  --color-bg: #ffffff;
-  --color-foreground: #1f2937;
+  --color-bg-start: #0a0f24;
+  --color-bg-end: #2a2b2f;
+  --color-foreground: #f9fafb;
+  --color-emerald: #10b981;
+  --color-coral: #f87171;
+  --color-sapphire: #3b82f6;
+  --color-violet: #8b5cf6;
 }
 
 [data-theme='dark'] {
-  --color-bg: #1f2937;
+  --color-bg-start: #0a0f24;
+  --color-bg-end: #2a2b2f;
   --color-foreground: #f9fafb;
 }
 
 body {
-  background-color: var(--color-bg);
+  font-family: Inter, system-ui, sans-serif;
+  background: linear-gradient(to bottom, var(--color-bg-start), var(--color-bg-end));
   color: var(--color-foreground);
+}
+
+.card {
+  @apply bg-white/10 backdrop-blur-md rounded-xl p-6 shadow-md;
+}
+
+.btn {
+  @apply relative overflow-hidden rounded-xl shadow-lg text-white font-semibold h-24 flex flex-col items-center justify-center transition-all active:translate-y-[3px];
+}
+
+.btn-emerald {
+  background-color: var(--color-emerald);
+}
+.btn-coral {
+  background-color: var(--color-coral);
+}
+.btn-sapphire {
+  background-color: var(--color-sapphire);
+}
+.btn-violet {
+  background-color: var(--color-violet);
+}
+
+.animate-bounce-short {
+  animation: bounce-short 250ms ease;
+}
+
+@keyframes bounce-short {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20%); }
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+  transition: all 200ms;
 }
 
 .ripple {
