@@ -4,7 +4,7 @@ import logging
 import time
 import psycopg2
 from psycopg2 import sql
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, abort
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from asgi_to_wsgi import AsgiToWsgi
 
@@ -183,3 +183,11 @@ def payout():
 @server.route("/healthz")
 def health():
     return "OK", 200
+
+
+# Serve React app for any unmatched GET route
+@server.route("/<path:path>", methods=["GET"])
+def spa_catch_all(path: str):
+    if path.startswith(("api", "attendance", "payout", "healthz")):
+        abort(404)
+    return index()
