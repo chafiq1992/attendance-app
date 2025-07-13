@@ -1,16 +1,17 @@
 # Attendance App
 
-A lightweight Flask application for tracking employee attendance. Each employee
-has their own sheet/tab inside a Google Sheets spreadsheet. Employees can check
-in, start breaks, log work outcomes, and more, all via a simple web UI.
+A lightweight Flask application for tracking employee attendance backed by a
+Postgres database (for example on Supabase). Employees can check in, start
+breaks, log work outcomes and more, all via a simple web UI.
 
 ## Required Environment Variables
 
 The app pulls configuration from a few environment variables:
 
-- `GOOGLE_SHEET_ID` – ID of the Google Sheet that stores attendance data.
-- `GCP_SA_B64` – Base64-encoded service account JSON with access to the sheet.
-- `DATABASE_URL` – Postgres connection string used by `db.get_engine()`.
+- `SUPABASE_URL` – Postgres connection string.
+- `SUPABASE_KEY` – service API key for Supabase (if required).
+- `DATABASE_URL` – optional Postgres connection string overriding
+  `SUPABASE_URL`.
 
 ## Running Locally
 
@@ -25,9 +26,8 @@ The app pulls configuration from a few environment variables:
 2. Export the environment variables:
 
    ```bash
-   export GOOGLE_SHEET_ID=your_spreadsheet_id
-   export GCP_SA_B64=$(base64 -w0 service_account.json)
-   export DATABASE_URL=postgresql://user:pass@localhost/dbname
+   export SUPABASE_URL=postgresql://user:pass@localhost/dbname
+   export SUPABASE_KEY=your_service_key
    ```
 
 3. Start the server:
@@ -63,8 +63,7 @@ chmod +x deploy.sh
 ```
 
 The script uploads the service account key to Secret Manager and sets the
-`GOOGLE_SHEET_ID`, `GCP_SA_B64`, and `DATABASE_URL` variables for the Cloud Run
-service.
+`SUPABASE_URL` and `SUPABASE_KEY` variables for the Cloud Run service.
 The script prints the service URL when deployment completes. Use that
 `https://<your-cloud-run-url>` to access the app. The FastAPI API will be
 reachable under `/api` on the deployed URL.

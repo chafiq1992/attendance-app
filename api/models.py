@@ -7,9 +7,9 @@ from sqlalchemy import String, Integer, DateTime
 from sqlalchemy.ext.asyncio import AsyncAttrs, create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("SUPABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL environment variable not set")
+    raise RuntimeError("DATABASE_URL or SUPABASE_URL environment variable not set")
 
 # convert sync postgres url to async if needed
 if DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+asyncpg://"):
