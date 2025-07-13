@@ -64,3 +64,17 @@ chmod +x deploy.sh
 The script uploads the service account key to Secret Manager and sets the
 `GOOGLE_SHEET_ID`, `GCP_SA_B64`, and `DATABASE_URL` variables for the Cloud Run
 service.
+
+## Database Migrations
+
+Alembic manages schema changes. To apply the latest migrations run:
+
+```bash
+alembic upgrade head
+```
+
+To undo the most recent migration:
+
+```bash
+alembic downgrade -1
+```
