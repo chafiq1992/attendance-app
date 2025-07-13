@@ -2,6 +2,8 @@ import datetime as dt
 import os
 import logging
 import time
+import psycopg2
+from psycopg2 import sql
 from flask import Flask, request, send_from_directory, jsonify
 from googleapiclient.discovery import build
 import config
@@ -30,6 +32,53 @@ sheet          = sheets_service.spreadsheets()
 # Simple in-memory cache for sheet data
 CACHE_TTL = 60  # seconds
 SHEET_CACHE = {}
+
+# --------------------------------------------------------------------
+# Database helpers
+# --------------------------------------------------------------------
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("❌  DATABASE_URL env-var not set!")
+
+
+def db_connect():
+    """Return a new database connection."""
+    return psycopg2.connect(DATABASE_URL)
+
+
+def table_name(employee: str) -> str:
+    """Sanitize employee name for use as a table name."""
+    sanitized = "employee_" + "".join(
+        c.lower() if c.isalnum() else "_" for c in employee
+    )
+    return sanitized
+
+
+def ensure_employee_table(name: str) -> str:
+    """Create the employee table if it doesn't already exist."""
+    tbl = table_name(name)
+    with db_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        day DATE PRIMARY KEY,
+                        clockin TIMESTAMPTZ,
+                        clockout TIMESTAMPTZ,
+                        break_start TIMESTAMPTZ,
+                        break_end TIMESTAMPTZ,
+                        extra_start TIMESTAMPTZ,
+                        extra_end TIMESTAMPTZ,
+                        cash TEXT,
+                        orders TEXT,
+                        payout TEXT,
+                        advance TEXT
+                    )
+                    """
+                ).format(table=sql.Identifier(tbl))
+            )
+    return tbl
 
 # --------------------------------------------------------------------
 # 3.  Helpers
@@ -122,65 +171,59 @@ def col_to_letter(col: int) -> str:
 
 
 def record_time(employee: str, action: str, day: int):
-    """Write today’s time into the proper cell."""
-    now = dt.datetime.now(dt.timezone.utc).astimezone(
-        dt.timezone(dt.timedelta(hours=0)))  # Africa/Casablanca == UTC+0 in July
-    time_str = now.strftime('%H:%M')
-
-    ensure_employee_sheet(employee)
-    ensure_current_month_table(employee)
-    base_row = 3
-    col = day + 1   # Sheet column = day 1 → column B
+    """Insert or update today's timestamp for the given action."""
+    now = dt.datetime.now(dt.timezone.utc)
+    local = now.astimezone(dt.timezone(dt.timedelta(hours=0)))
+    time_str = local.strftime("%H:%M")
 
     mapping = {
-        "clockin": 0,
-        "clockout": 1,
-        "startbreak": 4,
-        "endbreak": 5,
-        "startextra": 7,
-        "endextra": 8,
+        "clockin": "clockin",
+        "clockout": "clockout",
+        "startbreak": "break_start",
+        "endbreak": "break_end",
+        "startextra": "extra_start",
+        "endextra": "extra_end",
     }
     if action not in mapping:
         return False, f"Unknown action «{action}»"
 
-    target_row = base_row + mapping[action]
+    tbl = ensure_employee_table(employee)
+    col = mapping[action]
 
-    cell = f"{col_to_letter(col)}{target_row}"
+    with db_connect() as conn:
+        with conn.cursor() as cur:
+            query = sql.SQL(
+                "INSERT INTO {table} (day, {col}) VALUES (%s, %s) "
+                "ON CONFLICT(day) DO UPDATE SET {col}=EXCLUDED.{col}"
+            ).format(table=sql.Identifier(tbl), col=sql.Identifier(col))
+            cur.execute(query, (now.date(), now))
+        conn.commit()
 
-    sheet.values().update(
-        spreadsheetId=config.GOOGLE_SHEET_ID,
-        range=f"{employee}!{cell}",
-        valueInputOption="USER_ENTERED",
-        body={"values": [[time_str]]},
-    ).execute()
     return True, f"{action.upper()} recorded @ {time_str}"
 
 
 def record_value(employee: str, label: str, day: int, value: str):
     """Store an arbitrary value in the row mapped by `label`."""
-    ensure_employee_sheet(employee)
-    ensure_current_month_table(employee)
-
-    base_row = 3
-    col = day + 1
     mapping = {
-        "cash": 10,
-        "orders": 11,
-        "payout": 12,
-        "advance": 13,
+        "cash": "cash",
+        "orders": "orders",
+        "payout": "payout",
+        "advance": "advance",
     }
     if label not in mapping:
         return False, f"Unknown label «{label}»"
 
-    target_row = base_row + mapping[label]
-    cell = f"{col_to_letter(col)}{target_row}"
+    tbl = ensure_employee_table(employee)
+    col = mapping[label]
 
-    sheet.values().update(
-        spreadsheetId=config.GOOGLE_SHEET_ID,
-        range=f"{employee}!{cell}",
-        valueInputOption="USER_ENTERED",
-        body={"values": [[str(value)]]},
-    ).execute()
+    with db_connect() as conn:
+        with conn.cursor() as cur:
+            query = sql.SQL(
+                "INSERT INTO {table} (day, {col}) VALUES (%s, %s) "
+                "ON CONFLICT(day) DO UPDATE SET {col}=EXCLUDED.{col}"
+            ).format(table=sql.Identifier(tbl), col=sql.Identifier(col))
+            cur.execute(query, (dt.date.today(), str(value)))
+        conn.commit()
     return True, "OK"
 
 # --------------------------------------------------------------------
