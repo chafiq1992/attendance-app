@@ -5,6 +5,7 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     TZ=Africa/Casablanca \
     PORT=8080
+# This image expects DATABASE_URL to be provided at runtime
 
 WORKDIR /app
 COPY requirements.txt .
