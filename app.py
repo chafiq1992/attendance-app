@@ -39,7 +39,10 @@ if not DATABASE_URL:
 
 def db_connect():
     """Return a new database connection."""
-    return psycopg2.connect(DATABASE_URL)
+    url = DATABASE_URL
+    if url.startswith("postgresql+asyncpg://"):
+        url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    return psycopg2.connect(url)
 
 
 def table_name(employee: str) -> str:
