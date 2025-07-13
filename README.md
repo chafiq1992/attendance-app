@@ -53,8 +53,9 @@ npm run build   # production build
 
 During development the Vite dev server serves the app on `http://localhost:5173`
 and API requests are sent to the backend running on `http://localhost:8080`.
-When deploying, the backend will serve the compiled files from
-`frontend/dist` so the frontend and API share the same URL.
+When deploying, the Dockerfile builds the frontend and copies the compiled
+files from `frontend/dist` into the final image so the backend can serve them
+directly. No manual npm commands are needed in the deployment pipeline.
 
 ## Deploying
 
