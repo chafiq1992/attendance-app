@@ -19,7 +19,7 @@ export default function EmployeeDashboard() {
     queryKey: ['summary', employee, month],
     enabled: !!employee,
     queryFn: async () => {
-      const res = await axios.get('/summary', { params: { employee_id: employee, month } })
+      const res = await axios.get('/api/summary', { params: { employee_id: employee, month } })
       return res.data
     },
   })
