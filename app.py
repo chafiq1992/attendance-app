@@ -21,6 +21,11 @@ server = Flask(
     __name__, static_folder=dist_path, static_url_path="/static"
 )
 
+# Map the original Vite /assets URLs to our /static path
+@server.route("/assets/<path:filename>")
+def assets(filename: str):
+    return server.send_static_file(os.path.join("assets", filename))
+
 # Mount FastAPI under /api using ASGI -> WSGI adapter
 try:
     from api.main import app as fastapi_app
