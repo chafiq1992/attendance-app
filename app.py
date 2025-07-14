@@ -185,6 +185,49 @@ def payout():
     return jsonify(ok=True, msg="Payout recorded")
 
 
+@server.route("/advance", methods=["POST"])
+def advance():
+    data = request.json or {}
+    employee = data.get("employee", "").strip()
+    amount = data.get("amount")
+    day_str = data.get("date")
+    if not employee or amount is None:
+        return {"ok": False, "msg": "employee & amount required"}, 400
+
+    if day_str:
+        try:
+            day = dt.datetime.fromisoformat(day_str).day
+        except Exception:
+            return {"ok": False, "msg": "invalid date"}, 400
+    else:
+        day = dt.datetime.now(dt.timezone.utc).astimezone().day
+
+    record_value(employee, "advance", day, amount)
+    return jsonify(ok=True, msg="Advance recorded")
+
+
+@server.route("/record-order", methods=["POST"])
+def record_order():
+    data = request.json or {}
+    employee = data.get("employee", "").strip()
+    order_id = data.get("order_id", "").strip()
+    total = data.get("total")
+    day_str = data.get("date")
+    if not employee or not order_id or total is None:
+        return {"ok": False, "msg": "employee, order_id & total required"}, 400
+
+    if day_str:
+        try:
+            day = dt.datetime.fromisoformat(day_str).day
+        except Exception:
+            return {"ok": False, "msg": "invalid date"}, 400
+    else:
+        day = dt.datetime.now(dt.timezone.utc).astimezone().day
+
+    record_value(employee, "orders", day, f"{order_id}:{total}")
+    return jsonify(ok=True, msg="Order recorded")
+
+
 # Cloud Run health check
 @server.route("/healthz")
 def health():
@@ -194,6 +237,6 @@ def health():
 # Serve React app for any unmatched GET route
 @server.route("/<path:path>", methods=["GET"])
 def spa_catch_all(path: str):
-    if path.startswith(("api", "attendance", "payout", "healthz")):
+    if path.startswith(("api", "attendance", "payout", "advance", "record-order", "healthz")):
         abort(404)
     return index()

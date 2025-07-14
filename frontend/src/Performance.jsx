@@ -14,15 +14,20 @@ export default function Performance() {
   }, [])
 
   const [data, setData] = useState(null)
+  const defaultEnd = new Date()
+  defaultEnd.setDate(defaultEnd.getDate() - 1)
+  const defaultStart = new Date(defaultEnd)
+  defaultStart.setDate(defaultStart.getDate() - 14)
+  const [start, setStart] = useState(defaultStart.toISOString().slice(0, 10))
+  const [end, setEnd] = useState(defaultEnd.toISOString().slice(0, 10))
 
   useEffect(() => {
     if (!employee) return
-    const month = new Date().toISOString().slice(0, 7)
     axios
-      .get('/api/summary', { params: { employee_id: employee, month } })
+      .get('/api/summary', { params: { employee_id: employee, start, end } })
       .then((res) => setData(res.data))
       .catch(() => {})
-  }, [employee])
+  }, [employee, start, end])
 
   if (!data) return <div className="p-4">Loading...</div>
 
@@ -66,6 +71,20 @@ export default function Performance() {
       className="p-4 space-y-6"
     >
       {employee && <h2 className="text-xl font-bold">{employee}</h2>}
+      <div className="flex gap-2">
+        <input
+          type="date"
+          value={start}
+          onChange={(e) => setStart(e.target.value)}
+          className="rounded bg-white/10 p-1"
+        />
+        <input
+          type="date"
+          value={end}
+          onChange={(e) => setEnd(e.target.value)}
+          className="rounded bg-white/10 p-1"
+        />
+      </div>
       <div className="flex justify-center">
         <div className="relative w-40 h-40">
           <div
