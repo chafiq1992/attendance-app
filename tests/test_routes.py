@@ -49,3 +49,8 @@ def test_performance(client):
     assert resp.status_code == 200
     assert resp.mimetype == "text/html"
     assert resp.data == EXPECTED_CONTENT
+
+
+def test_employee_data_missing_params(client):
+    resp = client.get("/employee-data")
+    assert resp.status_code == 400

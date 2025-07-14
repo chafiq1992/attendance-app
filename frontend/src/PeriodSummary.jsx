@@ -28,8 +28,11 @@ export default function PeriodSummary() {
     setMonths(mths)
     mths.forEach(async (m, idx) => {
       try {
-        const res = await axios.get('/api/events', { params: { employee_id: employee, month: m.monthStr } })
-        const periods = calcPeriods(res.data, m.monthStr)
+        const [evRes, extraRes] = await Promise.all([
+          axios.get('/api/events', { params: { employee_id: employee, month: m.monthStr } }),
+          axios.get('/employee-data', { params: { employee, month: m.monthStr } })
+        ])
+        const periods = calcPeriods(evRes.data, m.monthStr, extraRes.data)
         setMonths((prev) => prev.map((x, i) => (i === idx ? { ...x, periods } : x)))
       } catch {
         /* ignore */
@@ -101,21 +104,34 @@ export default function PeriodSummary() {
                     {p.title}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>Worked Days</div>
-                    <div className="text-right font-semibold">{p.workedDays}</div>
-                    <div>Total Hours</div>
-                    <div className="text-right font-semibold">{p.hours}</div>
-                    <div>Payout (DH)</div>
-                    <div className="text-right font-semibold">{p.payout}</div>
-                    <div>Advances (DH)</div>
-                    <div className="text-right font-semibold">{p.advance}</div>
-                    <div>Balance</div>
-                    <div className="text-right font-semibold">{p.balance}</div>
-                    <div>Orders Count</div>
-                    <div className="text-right font-semibold">{p.orders}</div>
-                    <div>Orders Total</div>
-                    <div className="text-right font-semibold">{p.ordersTotal}</div>
+                    <div className="whitespace-nowrap">Worked Days</div>
+                    <div className="text-right font-semibold whitespace-nowrap">{p.workedDays}</div>
+                    <div className="whitespace-nowrap">Total Hours</div>
+                    <div className="text-right font-semibold whitespace-nowrap">{p.hours}</div>
+                    <div className="whitespace-nowrap">Payout (DH)</div>
+                    <div className="text-right font-semibold whitespace-nowrap">{p.payout}</div>
+                    <div className="whitespace-nowrap">Advances (DH)</div>
+                    <div className="text-right font-semibold whitespace-nowrap">{p.advance}</div>
+                    <div className="whitespace-nowrap">Balance</div>
+                    <div className="text-right font-semibold whitespace-nowrap">{p.balance}</div>
+                    <div className="whitespace-nowrap">Orders Count</div>
+                    <div className="text-right font-semibold whitespace-nowrap">{p.orders}</div>
+                    <div className="whitespace-nowrap">Orders Total</div>
+                    <div className="text-right font-semibold whitespace-nowrap">{p.ordersTotal}</div>
                   </div>
+                  {p.advanceEntries.length > 0 && (
+                    <div className="text-xs space-y-1">
+                      <div className="font-semibold">Advance History:</div>
+                      <ul className="list-disc ml-4">
+                        {p.advanceEntries.map((a, i) => (
+                          <li key={i} className="whitespace-nowrap">
+                            {a.date.slice(-2)}: {a.amount}
+                          </li>
+                        ))}
+                        <li className="font-semibold">Total: {p.advance}</li>
+                      </ul>
+                    </div>
+                  )}
                 </div>
               ))}
               <div className="card space-y-2">
@@ -170,12 +186,12 @@ export default function PeriodSummary() {
   )
 }
 
-function calcPeriods(events, monthStr) {
+function calcPeriods(events, monthStr, extras = []) {
   const [year, month] = monthStr.split('-').map(Number)
   const daysInMonth = new Date(year, month, 0).getDate()
   const periods = [
-    { title: '1 – 15', workedDays: 0, hours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0 },
-    { title: `16 – ${daysInMonth}`, workedDays: 0, hours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0 },
+    { title: '1 – 15', workedDays: 0, hours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0, advanceEntries: [] },
+    { title: `16 – ${daysInMonth}`, workedDays: 0, hours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0, advanceEntries: [] },
   ]
   const mapping = { clockin: 'in', in: 'in', clockout: 'out', out: 'out' }
   const byDay = {}
@@ -192,8 +208,23 @@ function calcPeriods(events, monthStr) {
       periods[idx].hours += (info.out - info.in) / 3600000
     }
   })
+
+  extras.forEach((ex) => {
+    const day = new Date(ex.date).getUTCDate()
+    const idx = day <= 15 ? 0 : 1
+    const p = periods[idx]
+    if (ex.payout) p.payout += Number(ex.payout)
+    if (ex.advance) {
+      p.advance += Number(ex.advance)
+      p.advanceEntries.push({ date: ex.date, amount: Number(ex.advance) })
+    }
+    if (ex.orders_count) p.orders += Number(ex.orders_count)
+    if (ex.orders_total) p.ordersTotal += Number(ex.orders_total)
+  })
+
   periods.forEach((p) => {
     p.hours = Number(p.hours.toFixed(2))
+    p.balance = p.payout - p.advance
   })
   return periods
 }
