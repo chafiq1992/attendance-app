@@ -3,7 +3,13 @@ import axios from 'axios'
 
 export default function PeriodSummary() {
   const [employee, setEmployee] = useState('')
-  const [periods, setPeriods] = useState([])
+  const [months, setMonths] = useState([])
+  const [open, setOpen] = useState(0)
+  const [advance, setAdvance] = useState('')
+  const [advanceDate, setAdvanceDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [orderId, setOrderId] = useState('')
+  const [orderTotal, setOrderTotal] = useState('')
+  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10))
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setEmployee(params.get('employee') || params.get('driver') || '')
@@ -11,54 +17,131 @@ export default function PeriodSummary() {
 
   useEffect(() => {
     if (!employee) return
-    const month = new Date().toISOString().slice(0, 7)
-    axios
-      .get('/api/events', { params: { employee_id: employee, month } })
-      .then((res) => setPeriods(calcPeriods(res.data, month)))
-      .catch(() => {})
+    const now = new Date()
+    const mths = []
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))
+      const monthStr = d.toISOString().slice(0, 7)
+      const label = d.toLocaleString('default', { month: 'long', year: 'numeric' })
+      mths.push({ label, monthStr, periods: [] })
+    }
+    setMonths(mths)
+    mths.forEach(async (m, idx) => {
+      try {
+        const res = await axios.get('/api/events', { params: { employee_id: employee, month: m.monthStr } })
+        const periods = calcPeriods(res.data, m.monthStr)
+        setMonths((prev) => prev.map((x, i) => (i === idx ? { ...x, periods } : x)))
+      } catch {
+        /* ignore */
+      }
+    })
   }, [employee])
+
+  const saveAdvance = async () => {
+    if (!advance) return
+    try {
+      await axios.post('/advance', { employee, amount: advance, date: advanceDate })
+      setAdvance('')
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const saveOrder = async () => {
+    if (!orderId || !orderTotal) return
+    try {
+      await axios.post('/record-order', { employee, order_id: orderId, total: orderTotal, date: orderDate })
+      setOrderId('')
+      setOrderTotal('')
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <div className="p-4 space-y-4">
       {employee && <h2 className="text-xl font-bold">{employee}</h2>}
-      <div className="grid md:grid-cols-2 gap-4">
-        {periods.map((p) => (
-          <div key={p.title} className="card space-y-2">
-            <div className="bg-sapphire text-white rounded-full px-3 py-1 inline-block font-semibold">
-              {p.title}
+      {months.map((m, idx) => (
+        <div key={m.label} className="card space-y-2">
+          <button
+            onClick={() => setOpen(open === idx ? -1 : idx)}
+            className="w-full text-left font-semibold mb-2"
+          >
+            {m.label}
+          </button>
+          {open === idx && (
+            <div className="grid md:grid-cols-2 gap-4">
+              {m.periods.map((p) => (
+                <div key={p.title} className="card space-y-2">
+                  <div className="bg-sapphire text-white rounded-full px-3 py-1 inline-block font-semibold">
+                    {p.title}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>Worked Days</div>
+                    <div className="text-right font-semibold">{p.workedDays}</div>
+                    <div>Total Hours</div>
+                    <div className="text-right font-semibold">{p.hours}</div>
+                    <div>Payout (DH)</div>
+                    <div className="text-right font-semibold">{p.payout}</div>
+                    <div>Advances (DH)</div>
+                    <div className="text-right font-semibold">{p.advance}</div>
+                    <div>Balance</div>
+                    <div className="text-right font-semibold">{p.balance}</div>
+                    <div>Orders Count</div>
+                    <div className="text-right font-semibold">{p.orders}</div>
+                    <div>Orders Total</div>
+                    <div className="text-right font-semibold">{p.ordersTotal}</div>
+                  </div>
+                </div>
+              ))}
+              <div className="card space-y-2">
+                <div className="font-semibold mb-1">Add Advance \ud83d\udcb8</div>
+                <input
+                  type="number"
+                  className="w-full rounded bg-white/10 p-1"
+                  placeholder="Amount"
+                  value={advance}
+                  onChange={(e) => setAdvance(e.target.value)}
+                />
+                <input
+                  type="date"
+                  className="w-full rounded bg-white/10 p-1"
+                  value={advanceDate}
+                  onChange={(e) => setAdvanceDate(e.target.value)}
+                />
+                <button onClick={saveAdvance} className="btn btn-sapphire w-full">Apply</button>
+              </div>
+              <div className="card space-y-2">
+                <div className="font-semibold mb-1">Record Order \ud83d\udcdf</div>
+                <input
+                  type="text"
+                  className="w-full rounded bg-white/10 p-1"
+                  placeholder="Order ID"
+                  value={orderId}
+                  onChange={(e) => setOrderId(e.target.value)}
+                />
+                <input
+                  type="number"
+                  className="w-full rounded bg-white/10 p-1"
+                  placeholder="Total"
+                  value={orderTotal}
+                  onChange={(e) => setOrderTotal(e.target.value)}
+                />
+                <input
+                  type="date"
+                  className="w-full rounded bg-white/10 p-1"
+                  value={orderDate}
+                  onChange={(e) => setOrderDate(e.target.value)}
+                />
+                <button onClick={saveOrder} className="btn btn-sapphire w-full">Apply</button>
+              </div>
+              <div className="bg-white/20 text-center font-semibold py-2 rounded-xl">
+                Orders Total: {m.periods.reduce((s,p)=>s+p.ordersTotal,0)} | Balance: {m.periods.reduce((s,p)=>s+p.balance,0)}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>Worked Days</div>
-              <div className="text-right font-semibold">{p.workedDays}</div>
-              <div>Total Hours</div>
-              <div className="text-right font-semibold">{p.hours}</div>
-              <div>Payout (DH)</div>
-              <div className="text-right font-semibold">{p.payout}</div>
-              <div>Advances (DH)</div>
-              <div className="text-right font-semibold">{p.advance}</div>
-              <div>Balance</div>
-              <div className="text-right font-semibold">{p.balance}</div>
-              <div>Orders Count</div>
-              <div className="text-right font-semibold">{p.orders}</div>
-              <div>Orders Total</div>
-              <div className="text-right font-semibold">{p.ordersTotal}</div>
-            </div>
-          </div>
-        ))}
-        <div className="card space-y-2">
-          <div className="font-semibold mb-1">Add Advance \ud83d\udcb8</div>
-          <input type="number" className="w-full rounded bg-white/10 p-1" placeholder="Amount" />
-          <input type="date" className="w-full rounded bg-white/10 p-1" />
+          )}
         </div>
-        <div className="card space-y-2">
-          <div className="font-semibold mb-1">Record Order \ud83d\udcdf</div>
-          <input type="text" className="w-full rounded bg-white/10 p-1" placeholder="Order ID" />
-          <input type="number" className="w-full rounded bg-white/10 p-1" placeholder="Total" />
-        </div>
-      </div>
-      <div className="bg-white/20 text-center font-semibold py-2 rounded-xl">
-        Orders Total: {periods.reduce((s,p)=>s+p.ordersTotal,0)} | Balance: {periods.reduce((s,p)=>s+p.balance,0)}
-      </div>
+      ))}
     </div>
   )
 }

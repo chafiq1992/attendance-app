@@ -144,31 +144,78 @@ def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, o
     }
 
 
+def _summarize_range(events: List[Event], start: datetime, end: datetime) -> Dict[str, object]:
+    """Summarize events between arbitrary start and end datetimes."""
+    num_days = (end.date() - start.date()).days
+    hours_per_day: Dict[str, float] = {str(d + 1): 0.0 for d in range(num_days)}
+    present_days = set()
+
+    by_day: Dict[int, List[Event]] = {}
+    for e in events:
+        day_index = (e.timestamp.astimezone(timezone.utc).date() - start.date()).days
+        if 0 <= day_index < num_days:
+            by_day.setdefault(day_index + 1, []).append(e)
+
+    for idx, evts in by_day.items():
+        evts.sort(key=lambda e: e.timestamp)
+        clock_in: datetime | None = None
+        total_seconds = 0.0
+        for ev in evts:
+            k = ev.kind
+            if k in {"clockin", "in"}:
+                clock_in = ev.timestamp
+            elif k in {"clockout", "out"} and clock_in:
+                total_seconds += (ev.timestamp - clock_in).total_seconds()
+                clock_in = None
+        if total_seconds > 0:
+            present_days.add(idx)
+            hours_per_day[str(idx)] = round(total_seconds / 3600, 2)
+
+    attendance_rate = len(present_days) / num_days if num_days else 0
+    total_hours = round(sum(hours_per_day.values()), 2)
+    return {
+        "attendance_rate": attendance_rate,
+        "hours_per_day": hours_per_day,
+        "total_hours": total_hours,
+    }
+
+
 @app.get("/summary", response_model=dict)
 async def get_summary(
     employee_id: str = Query(...),
-    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    month: str | None = Query(None, pattern=r"^\d{4}-\d{2}$"),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
 ):
-    year, m = map(int, month.split("-"))
-    start = datetime(year, m, 1, tzinfo=timezone.utc)
-    end_month = m + 1 if m < 12 else 1
-    end_year = year if m < 12 else year + 1
-    end = datetime(end_year, end_month, 1, tzinfo=timezone.utc)
+    if month:
+        year, m = map(int, month.split("-"))
+        start_dt = datetime(year, m, 1, tzinfo=timezone.utc)
+        end_month = m + 1 if m < 12 else 1
+        end_year = year if m < 12 else year + 1
+        end_dt = datetime(end_year, end_month, 1, tzinfo=timezone.utc)
+    elif start and end:
+        start_dt = datetime.fromisoformat(start).replace(tzinfo=timezone.utc)
+        end_dt = datetime.fromisoformat(end).replace(tzinfo=timezone.utc)
+    else:
+        raise HTTPException(status_code=400, detail="month or start/end required")
 
     stmt = (
         select(Event)
         .where(
             Event.employee_id == employee_id,
-            Event.timestamp >= start,
-            Event.timestamp < end,
+            Event.timestamp >= start_dt,
+            Event.timestamp < end_dt,
         )
         .order_by(Event.timestamp)
     )
     result = await session.execute(stmt)
     events = result.scalars().all()
 
-    summary = _summarize_events(events, year, m)
+    if month:
+        summary = _summarize_events(events, start_dt.year, start_dt.month)
+    else:
+        summary = _summarize_range(events, start_dt, end_dt)
     return summary
 
 # Expose app for uvicorn/gunicorn
