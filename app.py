@@ -140,6 +140,34 @@ def record_value(employee: str, label: str, date: dt.date, value: str):
 
     with db_connect() as conn:
         with conn.cursor() as cur:
+            if label == "advance":
+                # accumulate advances for the same day rather than overwrite
+                cur.execute(
+                    sql.SQL("SELECT {col} FROM {table} WHERE day=%s").format(
+                        table=sql.Identifier(tbl), col=sql.Identifier(col)
+                    ),
+                    (date,),
+                )
+                row = cur.fetchone()
+                prev = 0.0
+                if row and row[0] is not None:
+                    try:
+                        prev = float(row[0])
+                    except Exception:
+                        prev = 0.0
+                value = str(prev + float(value))
+            elif label == "orders":
+                # append order id and total to existing orders list
+                cur.execute(
+                    sql.SQL("SELECT {col} FROM {table} WHERE day=%s").format(
+                        table=sql.Identifier(tbl), col=sql.Identifier(col)
+                    ),
+                    (date,),
+                )
+                row = cur.fetchone()
+                if row and row[0]:
+                    value = f"{row[0]},{value}"
+
             query = sql.SQL(
                 "INSERT INTO {table} (day, {col}) VALUES (%s, %s) "
                 "ON CONFLICT(day) DO UPDATE SET {col}=EXCLUDED.{col}"
