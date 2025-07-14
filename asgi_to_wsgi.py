@@ -18,6 +18,16 @@ class AsgiToWsgi:
         self.loop = asyncio.new_event_loop()
         self._lock = threading.Lock()
 
+        # Run ASGI startup event if supported
+        if hasattr(app, "router") and hasattr(app.router, "startup"):
+            try:
+                self.loop.run_until_complete(app.router.startup())
+            except Exception:  # noqa: BLE001
+                # Don't prevent application startup on error but log
+                import logging
+
+                logging.getLogger(__name__).exception("ASGI startup failed")
+
     def __call__(self, environ: dict, start_response: Callable) -> Iterable[bytes]:
         method = environ.get("REQUEST_METHOD", "GET")
         path = environ.get("PATH_INFO", "")
