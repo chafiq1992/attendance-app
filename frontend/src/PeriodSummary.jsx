@@ -1,33 +1,22 @@
 import { useEffect, useState } from 'react'
+import axios from 'axios'
 
 export default function PeriodSummary() {
   const [employee, setEmployee] = useState('')
+  const [periods, setPeriods] = useState([])
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setEmployee(params.get('employee') || params.get('driver') || '')
   }, [])
-  const periods = [
-    {
-      title: '1 \u2013 15',
-      workedDays: 10,
-      hours: 80,
-      payout: 0,
-      advance: 0,
-      balance: 0,
-      orders: 4,
-      ordersTotal: 200,
-    },
-    {
-      title: '16 \u2013 31',
-      workedDays: 12,
-      hours: 96,
-      payout: 0,
-      advance: 0,
-      balance: 0,
-      orders: 6,
-      ordersTotal: 300,
-    },
-  ]
+
+  useEffect(() => {
+    if (!employee) return
+    const month = new Date().toISOString().slice(0, 7)
+    axios
+      .get('/api/events', { params: { employee_id: employee, month } })
+      .then((res) => setPeriods(calcPeriods(res.data, month)))
+      .catch(() => {})
+  }, [employee])
 
   return (
     <div className="p-4 space-y-4">
@@ -72,4 +61,32 @@ export default function PeriodSummary() {
       </div>
     </div>
   )
+}
+
+function calcPeriods(events, monthStr) {
+  const [year, month] = monthStr.split('-').map(Number)
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const periods = [
+    { title: '1 – 15', workedDays: 0, hours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0 },
+    { title: `16 – ${daysInMonth}`, workedDays: 0, hours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0 },
+  ]
+  const mapping = { clockin: 'in', in: 'in', clockout: 'out', out: 'out' }
+  const byDay = {}
+  events.forEach((e) => {
+    const day = new Date(e.timestamp).getUTCDate()
+    byDay[day] = byDay[day] || {}
+    const key = mapping[e.kind]
+    if (key) byDay[day][key] = new Date(e.timestamp)
+  })
+  Object.entries(byDay).forEach(([d, info]) => {
+    const idx = d <= 15 ? 0 : 1
+    periods[idx].workedDays += 1
+    if (info.in && info.out) {
+      periods[idx].hours += (info.out - info.in) / 3600000
+    }
+  })
+  periods.forEach((p) => {
+    p.hours = Number(p.hours.toFixed(2))
+  })
+  return periods
 }
