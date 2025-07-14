@@ -1,4 +1,11 @@
+import { useEffect, useState } from 'react'
+
 export default function PeriodSummary() {
+  const [employee, setEmployee] = useState('')
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setEmployee(params.get('employee') || params.get('driver') || '')
+  }, [])
   const periods = [
     {
       title: '1 \u2013 15',
@@ -24,6 +31,7 @@ export default function PeriodSummary() {
 
   return (
     <div className="p-4 space-y-4">
+      {employee && <h2 className="text-xl font-bold">{employee}</h2>}
       <div className="grid md:grid-cols-2 gap-4">
         {periods.map((p) => (
           <div key={p.title} className="card space-y-2">

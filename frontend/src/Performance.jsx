@@ -1,10 +1,17 @@
 import { Line } from 'react-chartjs-2'
 import { Chart, LineElement, CategoryScale, LinearScale, PointElement, Tooltip } from 'chart.js'
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 
 Chart.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip)
 
 export default function Performance() {
+  const [employee, setEmployee] = useState('')
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setEmployee(params.get('employee') || params.get('driver') || '')
+  }, [])
+
   const totalScore = 82
   const metrics = [
     { label: 'AM punctuality', icon: '⏰', value: 88 },
@@ -44,6 +51,7 @@ export default function Performance() {
       transition={{ duration: 0.3 }}
       className="p-4 space-y-6"
     >
+      {employee && <h2 className="text-xl font-bold">{employee}</h2>}
       <div className="flex justify-center">
         <div className="relative w-40 h-40">
           <div

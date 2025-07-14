@@ -1,6 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function MonthlySheets() {
+  const [employee, setEmployee] = useState('')
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setEmployee(params.get('employee') || params.get('driver') || '')
+  }, [])
+
   const months = [
     { label: 'July 2025', rows: sampleRows() },
     { label: 'June 2025', rows: sampleRows() },
@@ -9,6 +15,7 @@ export default function MonthlySheets() {
   const [open, setOpen] = useState(null)
   return (
     <div className="p-4 space-y-4 overflow-auto h-full scrollbar-thin scrollbar-thumb-sapphire/50">
+      {employee && <h2 className="text-xl font-bold">{employee}</h2>}
       <div className="sticky top-0 z-10">
         <div className="card">
           <div className="bg-sapphire text-center -mx-6 -mt-6 rounded-t-xl py-2 text-white font-semibold">

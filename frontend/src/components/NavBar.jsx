@@ -8,12 +8,15 @@ const items = [
 ]
 
 export default function NavBar({ path }) {
+  const params = new URLSearchParams(window.location.search)
+  const employee = params.get('employee') || params.get('driver') || ''
+  const query = employee ? `?employee=${employee}` : ''
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white/10 backdrop-blur-md px-2 py-1 flex justify-around text-sm">
       {items.map((it) => (
         <a
           key={it.path}
-          href={it.path}
+          href={it.path + query}
           className="relative flex flex-col items-center px-2 py-1"
         >
           <span>{it.icon}</span>
