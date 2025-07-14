@@ -124,8 +124,8 @@ def record_time(employee: str, action: str, day: int):
     return True, f"{action.upper()} recorded @ {time_str}"
 
 
-def record_value(employee: str, label: str, date: dt.date, value: str):
-    """Store an arbitrary value in the row mapped by `label` for `date`."""
+def record_value(employee: str, label: str, day: int, value: str):
+    """Store an arbitrary value in the row mapped by `label`."""
     mapping = {
         "cash": "cash",
         "orders": "orders",
@@ -144,7 +144,7 @@ def record_value(employee: str, label: str, date: dt.date, value: str):
                 "INSERT INTO {table} (day, {col}) VALUES (%s, %s) "
                 "ON CONFLICT(day) DO UPDATE SET {col}=EXCLUDED.{col}"
             ).format(table=sql.Identifier(tbl), col=sql.Identifier(col))
-            cur.execute(query, (date, str(value)))
+            cur.execute(query, (dt.date.today(), str(value)))
         conn.commit()
     return True, "OK"
 
@@ -180,7 +180,7 @@ def payout():
     if not employee or amount is None:
         return {"ok": False, "msg": "employee & amount required"}, 400
 
-    today = dt.datetime.now(dt.timezone.utc).date()
+    today = dt.datetime.now(dt.timezone.utc).astimezone().day
     record_value(employee, "payout", today, amount)
     return jsonify(ok=True, msg="Payout recorded")
 
@@ -196,11 +196,11 @@ def advance():
 
     if day_str:
         try:
-            day = dt.date.fromisoformat(day_str)
+            day = dt.datetime.fromisoformat(day_str).day
         except Exception:
             return {"ok": False, "msg": "invalid date"}, 400
     else:
-        day = dt.datetime.now(dt.timezone.utc).date()
+        day = dt.datetime.now(dt.timezone.utc).astimezone().day
 
     record_value(employee, "advance", day, amount)
     return jsonify(ok=True, msg="Advance recorded")
@@ -218,11 +218,11 @@ def record_order():
 
     if day_str:
         try:
-            day = dt.date.fromisoformat(day_str)
+            day = dt.datetime.fromisoformat(day_str).day
         except Exception:
             return {"ok": False, "msg": "invalid date"}, 400
     else:
-        day = dt.datetime.now(dt.timezone.utc).date()
+        day = dt.datetime.now(dt.timezone.utc).astimezone().day
 
     record_value(employee, "orders", day, f"{order_id}:{total}")
     return jsonify(ok=True, msg="Order recorded")
