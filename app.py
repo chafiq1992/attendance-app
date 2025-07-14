@@ -229,6 +229,65 @@ def record_order():
     return jsonify(ok=True, msg="Order recorded")
 
 
+@server.route("/employee-data")
+def employee_data():
+    """Return stored payout, advances and orders for a month."""
+    employee = request.args.get("employee", "").strip()
+    month = request.args.get("month", "")
+    if not employee or not month:
+        return {"ok": False, "msg": "employee & month required"}, 400
+    try:
+        year, m = map(int, month.split("-"))
+    except Exception:
+        return {"ok": False, "msg": "invalid month"}, 400
+
+    start = dt.date(year, m, 1)
+    end_month = 1 if m == 12 else m + 1
+    end_year = year + 1 if m == 12 else year
+    end = dt.date(end_year, end_month, 1)
+
+    tbl = ensure_employee_table(employee)
+    with db_connect() as conn:
+        with conn.cursor() as cur:
+            query = sql.SQL(
+                "SELECT day, cash, orders, payout, advance FROM {table} "
+                "WHERE day >= %s AND day < %s ORDER BY day"
+            ).format(table=sql.Identifier(tbl))
+            cur.execute(query, (start, end))
+            rows = cur.fetchall()
+
+    data = []
+    for day, cash, orders, payout, advance in rows:
+        orders_count = 0
+        orders_total = 0.0
+        if orders:
+            for part in str(orders).split(','):
+                if ':' in part:
+                    try:
+                        orders_total += float(part.split(':')[1])
+                        orders_count += 1
+                    except Exception:
+                        pass
+        try:
+            payout_amt = float(payout) if payout is not None else 0.0
+        except Exception:
+            payout_amt = 0.0
+        try:
+            advance_amt = float(advance) if advance is not None else 0.0
+        except Exception:
+            advance_amt = 0.0
+        data.append(
+            {
+                "date": day.isoformat(),
+                "payout": payout_amt,
+                "advance": advance_amt,
+                "orders_count": orders_count,
+                "orders_total": orders_total,
+            }
+        )
+    return jsonify(data)
+
+
 # Cloud Run health check
 @server.route("/healthz")
 def health():
