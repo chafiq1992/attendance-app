@@ -2,6 +2,7 @@ import { Line } from 'react-chartjs-2'
 import { Chart, LineElement, CategoryScale, LinearScale, PointElement, Tooltip } from 'chart.js'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import axios from 'axios'
 
 Chart.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip)
 
@@ -12,14 +13,27 @@ export default function Performance() {
     setEmployee(params.get('employee') || params.get('driver') || '')
   }, [])
 
-  const totalScore = 82
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    if (!employee) return
+    const month = new Date().toISOString().slice(0, 7)
+    axios
+      .get('/api/summary', { params: { employee_id: employee, month } })
+      .then((res) => setData(res.data))
+      .catch(() => {})
+  }, [employee])
+
+  if (!data) return <div className="p-4">Loading...</div>
+
+  const totalScore = Math.round(data.attendance_rate * 100)
   const metrics = [
-    { label: 'AM punctuality', icon: '⏰', value: 88 },
-    { label: 'PM punctuality', icon: '🌅', value: 80 },
-    { label: 'Break discipline', icon: '☕', value: 70 },
-    { label: 'Extra hours', icon: '💪', value: 95 },
-    { label: 'Consistency', icon: '📆', value: 78 },
-    { label: 'App usage accuracy', icon: '✅', value: 90 },
+    { label: 'AM punctuality', icon: '⏰', value: totalScore },
+    { label: 'PM punctuality', icon: '🌅', value: totalScore },
+    { label: 'Break discipline', icon: '☕', value: totalScore },
+    { label: 'Extra hours', icon: '💪', value: Math.min(100, Math.round((data.total_hours / 160) * 100)) },
+    { label: 'Consistency', icon: '📆', value: totalScore },
+    { label: 'App usage accuracy', icon: '✅', value: 100 },
   ]
 
   const verdict = (v) => {
@@ -29,8 +43,8 @@ export default function Performance() {
     return 'Poor'
   }
 
-  const labels = Array.from({ length: 30 }, (_, i) => `d${i + 1}`)
-  const scores = labels.map(() => 60 + Math.round(Math.random() * 40))
+  const labels = Object.keys(data.hours_per_day).sort((a, b) => Number(a) - Number(b)).map((d) => `d${d}`)
+  const scores = labels.map((l) => Math.min(100, data.hours_per_day[l.slice(1)] * 12.5))
   const lineData = {
     labels,
     datasets: [
