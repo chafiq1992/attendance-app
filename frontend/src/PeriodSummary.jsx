@@ -52,6 +52,10 @@ export default function PeriodSummary() {
           const p = { ...periods[idx] }
           p.advance = Number(p.advance) + Number(advance)
           p.balance = p.payout - p.advance
+          p.advanceEntries = p.advanceEntries.concat({
+            date: advanceDate,
+            amount: Number(advance),
+          })
           periods[idx] = p
           return { ...m, periods }
         }),
