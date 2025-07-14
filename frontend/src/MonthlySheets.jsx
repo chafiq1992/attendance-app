@@ -64,41 +64,43 @@ export default function MonthlySheets() {
 
 function Table({ rows }) {
   return (
-    <table className="w-full text-sm">
-      <thead className="bg-white/10">
-        <tr>
-          <th className="p-1">Date</th>
-          <th className="p-1">In</th>
-          <th className="p-1">Out</th>
-          <th className="p-1">Break Start</th>
-          <th className="p-1">Break End</th>
-          <th className="p-1">Extra Start</th>
-          <th className="p-1">Extra End</th>
-          <th className="p-1">Total Hrs</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr
-            key={r.date}
-            className={
-              (i % 2 ? 'bg-white/5' : '') +
-              (r.weekend ? ' bg-violet/10' : '') +
-              (r.holiday ? ' bg-amber-200/20' : '')
-            }
-          >
-            <td className="p-1 text-center whitespace-nowrap">{r.date}</td>
-            <td className="p-1 text-center">{r.in}</td>
-            <td className="p-1 text-center">{r.out}</td>
-            <td className="p-1 text-center">{r.breakStart}</td>
-            <td className="p-1 text-center">{r.breakEnd}</td>
-            <td className="p-1 text-center">{r.extraStart}</td>
-            <td className="p-1 text-center">{r.extraEnd}</td>
-            <td className="p-1 text-center">{r.total}</td>
+    <div className="overflow-auto">
+      <table className="w-full text-xs sm:text-sm table-fixed">
+        <thead className="bg-white/10">
+          <tr>
+            <th className="p-1 whitespace-nowrap">Date</th>
+            <th className="p-1 whitespace-nowrap">In</th>
+            <th className="p-1 whitespace-nowrap">Out</th>
+            <th className="p-1 whitespace-nowrap">Break Start</th>
+            <th className="p-1 whitespace-nowrap">Break End</th>
+            <th className="p-1 whitespace-nowrap">Extra Start</th>
+            <th className="p-1 whitespace-nowrap">Extra End</th>
+            <th className="p-1 whitespace-nowrap">Total Hrs</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr
+              key={r.date}
+              className={
+                (i % 2 ? 'bg-white/5' : '') +
+                (r.weekend ? ' bg-violet/10' : '') +
+                (r.holiday ? ' bg-amber-200/20' : '')
+              }
+            >
+              <td className="p-1 text-center whitespace-nowrap">{r.date}</td>
+              <td className="p-1 text-center whitespace-nowrap">{r.in}</td>
+              <td className="p-1 text-center whitespace-nowrap">{r.out}</td>
+              <td className="p-1 text-center whitespace-nowrap">{r.breakStart}</td>
+              <td className="p-1 text-center whitespace-nowrap">{r.breakEnd}</td>
+              <td className="p-1 text-center whitespace-nowrap">{r.extraStart}</td>
+              <td className="p-1 text-center whitespace-nowrap">{r.extraEnd}</td>
+              <td className="p-1 text-center whitespace-nowrap">{r.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
