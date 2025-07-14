@@ -41,6 +41,18 @@ export default function PeriodSummary() {
     if (!advance) return
     try {
       await axios.post('/advance', { employee, amount: advance, date: advanceDate })
+      setMonths((prev) =>
+        prev.map((m) => {
+          if (!advanceDate.startsWith(m.monthStr)) return m
+          const idx = Number(advanceDate.slice(-2)) <= 15 ? 0 : 1
+          const periods = m.periods.slice()
+          const p = { ...periods[idx] }
+          p.advance = Number(p.advance) + Number(advance)
+          p.balance = p.payout - p.advance
+          periods[idx] = p
+          return { ...m, periods }
+        }),
+      )
       setAdvance('')
     } catch {
       /* ignore */
@@ -51,6 +63,18 @@ export default function PeriodSummary() {
     if (!orderId || !orderTotal) return
     try {
       await axios.post('/record-order', { employee, order_id: orderId, total: orderTotal, date: orderDate })
+      setMonths((prev) =>
+        prev.map((m) => {
+          if (!orderDate.startsWith(m.monthStr)) return m
+          const idx = Number(orderDate.slice(-2)) <= 15 ? 0 : 1
+          const periods = m.periods.slice()
+          const p = { ...periods[idx] }
+          p.orders += 1
+          p.ordersTotal = Number(p.ordersTotal) + Number(orderTotal)
+          periods[idx] = p
+          return { ...m, periods }
+        }),
+      )
       setOrderId('')
       setOrderTotal('')
     } catch {

@@ -146,6 +146,7 @@ def record_value(employee: str, label: str, date: dt.date, value: str):
             ).format(table=sql.Identifier(tbl), col=sql.Identifier(col))
             cur.execute(query, (date, str(value)))
         conn.commit()
+    logger.info("Recorded %s for %s on %s: %s", label, employee, date, value)
     return True, "OK"
 
 # --------------------------------------------------------------------
