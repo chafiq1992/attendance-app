@@ -16,8 +16,9 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 # Serve compiled frontend assets from frontend/dist
 dist_path = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+# Serve frontend assets under /static to avoid route conflicts
 server = Flask(
-    __name__, static_folder=dist_path, static_url_path="/"
+    __name__, static_folder=dist_path, static_url_path="/static"
 )
 
 # Mount FastAPI under /api using ASGI -> WSGI adapter
