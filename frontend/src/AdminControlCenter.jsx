@@ -4,6 +4,7 @@ import TimelineEntry from './components/TimelineEntry'
 import EditRecords from './EditRecords'
 import PayoutSummary from './PayoutSummary'
 import SettingsLogs from './SettingsLogs'
+import AdminHeader from './components/AdminHeader'
 
 const actions = [
   { kind: 'clockin', icon: '✅', label: 'Clock In' },
@@ -101,37 +102,34 @@ function OverviewTab() {
 
   return (
     <div className="space-y-4">
-      <table className="min-w-full text-sm table-hover">
-        <thead>
-          <tr>
-            <th className="border px-2">Employee</th>
-            <th className="border px-2">Status</th>
-            <th className="border px-2">Hours Today</th>
-            <th className="border px-2">Extra</th>
-            <th className="border px-2">Online</th>
-            <th className="border px-2">View</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map(emp => {
-            const m = computeMetrics(emp.events)
-            return (
-              <tr key={emp.id} className="text-center">
-                <td className="border px-2">{emp.id}</td>
-                <td className="border px-2">{m.status}</td>
-                <td className="border px-2">{(m.workedMs/3600000).toFixed(2)}h</td>
-                <td className="border px-2">{(m.extraMs/3600000).toFixed(2)}h</td>
-                <td className="border px-2">{m.online ? '🟢' : '🔴'}</td>
-                <td className="border px-2">
-                  <button className="underline" onClick={() => setSelected(emp)}>
-                    View
-                  </button>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {data.map(emp => {
+          const m = computeMetrics(emp.events)
+          return (
+            <div key={emp.id} className="card flex items-center space-x-4">
+              <img
+                src={`https://api.dicebear.com/8.x/identicon/svg?seed=${emp.id}`}
+                alt="avatar"
+                className="w-12 h-12 rounded-full"
+              />
+              <div className="flex-1">
+                <div className="font-semibold">{emp.id}</div>
+                <div className="text-sm">Hours: {(m.workedMs/3600000).toFixed(2)}h</div>
+                <div className="text-sm">Extra: {(m.extraMs/3600000).toFixed(2)}h</div>
+              </div>
+              <div className="flex flex-col items-end space-y-2">
+                <span className={`badge ${m.online ? 'bg-emerald/20 text-emerald' : 'bg-coral/20 text-coral'}`}>{m.status}</span>
+                <button
+                  className="underline text-sm"
+                  onClick={() => setSelected(emp)}
+                >
+                  View
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center" onClick={() => setSelected(null)}>
           <div className="bg-white dark:bg-slate-800 p-4 rounded space-y-2 max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
@@ -153,6 +151,7 @@ function OverviewTab() {
 
 function DirectoryTab() {
   const [employees, setEmployees] = useState([])
+  const [query, setQuery] = useState('')
   useEffect(() => {
     const fetchData = async () => {
       const month = new Date().toISOString().slice(0, 7)
@@ -192,35 +191,45 @@ function DirectoryTab() {
   }, [])
 
   return (
-    <table className="min-w-full text-sm table-hover">
-      <thead>
-        <tr>
-          <th className="border px-2">Name</th>
-          <th className="border px-2">Status</th>
-          <th className="border px-2">Worked Days</th>
-          <th className="border px-2">Total Extra Hours</th>
-          <th className="border px-2">View Details</th>
-        </tr>
-      </thead>
-      <tbody>
-        {employees.map(emp => {
-          const today = new Date().toISOString().slice(0,10)
-          const todays = emp.events?.filter(e => e.timestamp.startsWith(today)) || []
-          const status = todays.length ? computeMetrics(todays).status : 'Clocked Out'
-          return (
-            <tr key={emp.id} className="text-center">
-              <td className="border px-2">{emp.id}</td>
-              <td className="border px-2">{status}</td>
-              <td className="border px-2">{emp.workedDays}</td>
-              <td className="border px-2">{emp.extraHours}</td>
-              <td className="border px-2">
-                <a className="underline" href={`/employee-dashboard?employee=${encodeURIComponent(emp.id)}`}>View Details</a>
-              </td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+    <div className="space-y-2">
+      <input
+        className="bg-white/10 p-2 rounded w-full md:w-1/3"
+        placeholder="Search"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+      />
+      <table className="min-w-full text-sm table-hover">
+        <thead>
+          <tr>
+            <th className="border px-2">Name</th>
+            <th className="border px-2">Status</th>
+            <th className="border px-2">Worked Days</th>
+            <th className="border px-2">Total Extra Hours</th>
+            <th className="border px-2">View Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {employees.filter(e => e.id.toLowerCase().includes(query.toLowerCase())).map(emp => {
+            const today = new Date().toISOString().slice(0,10)
+            const todays = emp.events?.filter(e => e.timestamp.startsWith(today)) || []
+            const status = todays.length ? computeMetrics(todays).status : 'Clocked Out'
+            return (
+              <tr key={emp.id} className="text-center">
+                <td className="border px-2">{emp.id}</td>
+                <td className="border px-2">
+                  <span className={`badge ${status==='Clocked Out' ? 'bg-coral/20 text-coral' : 'bg-emerald/20 text-emerald'}`}>{status}</span>
+                </td>
+                <td className="border px-2">{emp.workedDays}</td>
+                <td className="border px-2">{emp.extraHours}</td>
+                <td className="border px-2">
+                  <a className="underline" href={`/employee-dashboard?employee=${encodeURIComponent(emp.id)}`}>View Details</a>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -243,15 +252,11 @@ export default function AdminControlCenter() {
     }
   }
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex space-x-4 border-b pb-2">
-        <button className={tab==='overview' ? 'font-bold' : ''} onClick={() => setTab('overview')}>Overview</button>
-        <button className={tab==='directory' ? 'font-bold' : ''} onClick={() => setTab('directory')}>Employees Directory</button>
-        <button className={tab==='edit' ? 'font-bold' : ''} onClick={() => setTab('edit')}>Edit Records</button>
-        <button className={tab==='payout' ? 'font-bold' : ''} onClick={() => setTab('payout')}>Payout Summary</button>
-        <button className={tab==='settings' ? 'font-bold' : ''} onClick={() => setTab('settings')}>Settings & Logs</button>
+    <>
+      <AdminHeader tab={tab} onTabChange={setTab} />
+      <div className="p-4 pt-20 space-y-4">
+        {renderTab()}
       </div>
-      {renderTab()}
-    </div>
+    </>
   )
 }

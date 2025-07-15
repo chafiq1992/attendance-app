@@ -65,6 +65,18 @@ body {
   transition: all var(--motion-duration) var(--motion-curve);
 }
 
+.badge {
+  @apply px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap;
+}
+
+.tab {
+  @apply px-3 py-1 rounded-lg font-medium text-white whitespace-nowrap;
+}
+
+.tab-active {
+  @apply bg-white/20 shadow;
+}
+
 .ripple {
   position: absolute;
   border-radius: 9999px;
