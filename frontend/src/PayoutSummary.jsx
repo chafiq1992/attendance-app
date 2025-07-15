@@ -41,15 +41,15 @@ export default function PayoutSummary() {
     <div className="space-y-2">
       <input
         type="month"
-        className="bg-white/10 p-1 rounded"
+        className="bg-white/10 p-2 rounded-md"
         value={month}
         onChange={e => setMonth(e.target.value)}
       />
-      <table className="min-w-full text-sm">
+      <table className="min-w-full text-sm table-hover">
         <thead>
           <tr>
             <th className="border px-2">Employee</th>
-            <th className="border px-2">Day Price (DH)</th>
+            <th className="border px-2">Day Price 💰</th>
             <th className="border px-2">Worked Days</th>
             <th className="border px-2">Base Pay</th>
           </tr>
@@ -67,7 +67,7 @@ export default function PayoutSummary() {
                     type="number"
                     value={rate}
                     onChange={e => handleRateChange(emp, e.target.value)}
-                    className="bg-white/10 p-1 rounded w-24 text-right"
+                    className="bg-white/10 p-2 rounded-md w-24 text-right"
                   />
                 </td>
                 <td className="border px-2">{days}</td>

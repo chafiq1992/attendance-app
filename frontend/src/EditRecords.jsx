@@ -55,29 +55,33 @@ export default function EditRecords() {
 
   return (
     <div className="space-y-2">
-      <div className="flex space-x-2">
+      <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
         <input
-          className="bg-white/10 p-1 rounded"
+          className="bg-white/10 p-2 rounded-md"
           value={employee}
           onChange={(e) => setEmployee(e.target.value)}
           placeholder="Employee"
         />
-        <input
-          type="date"
-          className="bg-white/10 p-1 rounded"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+        <div className="relative">
+          <input
+            type="date"
+            className="bg-white/10 p-2 pr-8 rounded-md w-full"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">📅</span>
+        </div>
         <label className="flex items-center space-x-1 text-sm">
           <input
             type="checkbox"
+            className="accent-sapphire mr-1"
             checked={showMissing}
             onChange={(e) => setShowMissing(e.target.checked)}
           />
           <span>Show only days with missing data</span>
         </label>
       </div>
-      <table className="min-w-full text-sm">
+      <table className="min-w-full text-sm table-hover">
         <thead>
           <tr>
             <th className="border px-2">Entry</th>
