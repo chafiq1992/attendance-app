@@ -1,5 +1,5 @@
 import AttendancePad from './AttendancePad'
-import AdminDashboard from './AdminDashboard'
+import AdminControlCenter from './AdminControlCenter'
 import EmployeeDashboard from './EmployeeDashboard'
 import MonthlySheets from './MonthlySheets'
 import PeriodSummary from './PeriodSummary'
@@ -11,7 +11,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 export default function App() {
   const shouldReduce = useReducedMotion()
   const path = window.location.pathname
-  if (path.startsWith('/admin-dashboard')) return <AdminDashboard />
+  if (path.startsWith('/admin-dashboard')) return <AdminControlCenter />
   if (path.startsWith('/employee-dashboard')) return <EmployeeDashboard />
 
   let Page = AttendancePad
