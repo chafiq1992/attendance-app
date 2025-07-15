@@ -77,7 +77,10 @@ export default function AttendancePad() {
     >
       <div className="card w-full text-center">
         <div className="text-xl font-semibold" data-testid="name">{employee}</div>
-        <div className="text-lg">{time.toLocaleString()}</div>
+        <div className="mt-2 inline-block bg-sapphire text-white px-3 py-1 rounded-full">
+          <div>{time.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
+          <div className="font-mono tracking-widest">{time.toLocaleTimeString()}</div>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4 w-full">
         {actions.map((a) => {
