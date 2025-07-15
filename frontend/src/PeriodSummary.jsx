@@ -208,7 +208,7 @@ export default function PeriodSummary() {
                     </div>
                   </div>
                 )
-              })() )}
+                })()}
             </div>
           )}
         </div>
