@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import List, Optional, Dict
 import calendar
 
@@ -11,6 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .models import Event, AsyncSessionLocal, init_models
 
 app = FastAPI()
+
+# ---------------------------------------------------------------------------
+# Attendance calculation settings
+# ---------------------------------------------------------------------------
+# Daily required work hours
+WORK_DAY_HOURS = 8
+# Extra time grace period in minutes
+GRACE_PERIOD_MIN = 20
+# Penalty added to missing time in minutes
+UNDER_TIME_PENALTY_MIN = 15
 
 @app.on_event("startup")
 async def on_startup() -> None:
@@ -110,9 +120,56 @@ async def delete_event(event_id: int, session: AsyncSession = Depends(get_sessio
     return {"ok": True}
 
 
+def _compute_day_metrics(events: List[Event]) -> Dict[str, float]:
+    """Return worked, extra, penalty and net hours for a list of events."""
+    events.sort(key=lambda e: e.timestamp)
+    clock_in: datetime | None = None
+    clock_out: datetime | None = None
+    break_start: datetime | None = None
+    break_seconds = 0.0
+
+    for ev in events:
+        k = ev.kind
+        if k in {"clockin", "in"} and clock_in is None:
+            clock_in = ev.timestamp
+        elif k in {"clockout", "out"}:
+            clock_out = ev.timestamp
+        elif k == "startbreak" and break_start is None:
+            break_start = ev.timestamp
+        elif k == "endbreak" and break_start is not None:
+            break_seconds += (ev.timestamp - break_start).total_seconds()
+            break_start = None
+
+    worked_seconds = 0.0
+    if clock_in and clock_out and clock_out > clock_in:
+        worked_seconds = (clock_out - clock_in).total_seconds() - break_seconds
+        worked_seconds = max(0.0, worked_seconds)
+
+    required = WORK_DAY_HOURS * 3600
+    grace = GRACE_PERIOD_MIN * 60
+    penalty_bonus = UNDER_TIME_PENALTY_MIN * 60
+
+    extra_seconds = 0.0
+    penalty_seconds = 0.0
+    if worked_seconds >= required:
+        extra_seconds = max(0.0, worked_seconds - required - grace)
+    else:
+        penalty_seconds = required - worked_seconds + penalty_bonus
+
+    return {
+        "worked_hours": worked_seconds / 3600,
+        "extra_hours": extra_seconds / 3600,
+        "penalty_hours": penalty_seconds / 3600,
+        "net_hours": (extra_seconds - penalty_seconds) / 3600,
+    }
+
+
 def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, object]:
     days_in_month = calendar.monthrange(year, month)[1]
     hours_per_day: Dict[str, float] = {str(d): 0.0 for d in range(1, days_in_month + 1)}
+    extras_per_day: Dict[str, float] = {str(d): 0.0 for d in range(1, days_in_month + 1)}
+    penalties_per_day: Dict[str, float] = {str(d): 0.0 for d in range(1, days_in_month + 1)}
+    net_per_day: Dict[str, float] = {str(d): 0.0 for d in range(1, days_in_month + 1)}
     present_days = set()
 
     by_day: Dict[int, List[Event]] = {}
@@ -121,26 +178,29 @@ def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, o
         by_day.setdefault(day, []).append(e)
 
     for day, evts in by_day.items():
-        evts.sort(key=lambda e: e.timestamp)
-        clock_in: datetime | None = None
-        total_seconds = 0.0
-        for ev in evts:
-            k = ev.kind
-            if k in {"clockin", "in"}:
-                clock_in = ev.timestamp
-            elif k in {"clockout", "out"} and clock_in:
-                total_seconds += (ev.timestamp - clock_in).total_seconds()
-                clock_in = None
-        if total_seconds > 0:
+        metrics = _compute_day_metrics(evts)
+        if metrics["worked_hours"] > 0:
             present_days.add(day)
-            hours_per_day[str(day)] = round(total_seconds / 3600, 2)
+        hours_per_day[str(day)] = round(metrics["worked_hours"], 2)
+        extras_per_day[str(day)] = round(metrics["extra_hours"], 2)
+        penalties_per_day[str(day)] = round(metrics["penalty_hours"], 2)
+        net_per_day[str(day)] = round(metrics["net_hours"], 2)
 
     attendance_rate = len(present_days) / days_in_month if days_in_month else 0
     total_hours = round(sum(hours_per_day.values()), 2)
+    total_extra = round(sum(extras_per_day.values()), 2)
+    total_penalty = round(sum(penalties_per_day.values()), 2)
+    net_time = round(total_extra - total_penalty, 2)
     return {
         "attendance_rate": attendance_rate,
         "hours_per_day": hours_per_day,
         "total_hours": total_hours,
+        "extra_per_day": extras_per_day,
+        "penalty_per_day": penalties_per_day,
+        "net_per_day": net_per_day,
+        "total_extra": total_extra,
+        "total_penalty": total_penalty,
+        "net_time": net_time,
     }
 
 
@@ -148,6 +208,9 @@ def _summarize_range(events: List[Event], start: datetime, end: datetime) -> Dic
     """Summarize events between arbitrary start and end datetimes."""
     num_days = (end.date() - start.date()).days
     hours_per_day: Dict[str, float] = {str(d + 1): 0.0 for d in range(num_days)}
+    extras_per_day: Dict[str, float] = {str(d + 1): 0.0 for d in range(num_days)}
+    penalties_per_day: Dict[str, float] = {str(d + 1): 0.0 for d in range(num_days)}
+    net_per_day: Dict[str, float] = {str(d + 1): 0.0 for d in range(num_days)}
     present_days = set()
 
     by_day: Dict[int, List[Event]] = {}
@@ -157,26 +220,29 @@ def _summarize_range(events: List[Event], start: datetime, end: datetime) -> Dic
             by_day.setdefault(day_index + 1, []).append(e)
 
     for idx, evts in by_day.items():
-        evts.sort(key=lambda e: e.timestamp)
-        clock_in: datetime | None = None
-        total_seconds = 0.0
-        for ev in evts:
-            k = ev.kind
-            if k in {"clockin", "in"}:
-                clock_in = ev.timestamp
-            elif k in {"clockout", "out"} and clock_in:
-                total_seconds += (ev.timestamp - clock_in).total_seconds()
-                clock_in = None
-        if total_seconds > 0:
+        metrics = _compute_day_metrics(evts)
+        if metrics["worked_hours"] > 0:
             present_days.add(idx)
-            hours_per_day[str(idx)] = round(total_seconds / 3600, 2)
+        hours_per_day[str(idx)] = round(metrics["worked_hours"], 2)
+        extras_per_day[str(idx)] = round(metrics["extra_hours"], 2)
+        penalties_per_day[str(idx)] = round(metrics["penalty_hours"], 2)
+        net_per_day[str(idx)] = round(metrics["net_hours"], 2)
 
     attendance_rate = len(present_days) / num_days if num_days else 0
     total_hours = round(sum(hours_per_day.values()), 2)
+    total_extra = round(sum(extras_per_day.values()), 2)
+    total_penalty = round(sum(penalties_per_day.values()), 2)
+    net_time = round(total_extra - total_penalty, 2)
     return {
         "attendance_rate": attendance_rate,
         "hours_per_day": hours_per_day,
         "total_hours": total_hours,
+        "extra_per_day": extras_per_day,
+        "penalty_per_day": penalties_per_day,
+        "net_per_day": net_per_day,
+        "total_extra": total_extra,
+        "total_penalty": total_penalty,
+        "net_time": net_time,
     }
 
 
