@@ -5,9 +5,9 @@
 :root {
   font-family: Inter, system-ui, sans-serif;
   --color-primary: #004AAD;
-  --color-bg-start: #0a0f24;
-  --color-bg-end: #2a2b2f;
-  --color-foreground: #f9fafb;
+  --color-bg-start: #f9fafb;
+  --color-bg-end: #ffffff;
+  --color-foreground: #1f2937;
   --color-emerald: #10b981;
   --color-coral: #f87171;
   --color-sapphire: #3b82f6;
@@ -24,12 +24,12 @@
 
 body {
   font-family: Inter, system-ui, sans-serif;
-  background: linear-gradient(to bottom, var(--color-bg-start), var(--color-bg-end));
+  background-color: var(--color-bg-start);
   color: var(--color-foreground);
 }
 
 .card {
-  @apply bg-white/10 backdrop-blur-md rounded-xl p-6 shadow-md;
+  @apply bg-white rounded-xl p-6 shadow border border-gray-200;
 }
 
 .btn {
@@ -60,9 +60,7 @@ body {
 }
 
 .table-hover tbody tr:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  transform: translateX(4px);
-  transition: all var(--motion-duration) var(--motion-curve);
+  background-color: #e0f2fe;
 }
 
 .badge {
@@ -70,11 +68,11 @@ body {
 }
 
 .tab {
-  @apply px-3 py-1 rounded-lg font-medium text-white whitespace-nowrap;
+  @apply px-3 py-1 rounded-lg font-medium text-gray-800 whitespace-nowrap;
 }
 
 .tab-active {
-  @apply bg-white/20 shadow;
+  @apply bg-gray-200 shadow;
 }
 
 .ripple {
@@ -91,4 +89,18 @@ body {
     transform: scale(4);
     opacity: 0;
   }
+}
+
+.toggle-switch {
+  @apply relative inline-block w-10 h-5 cursor-pointer appearance-none bg-gray-300 rounded-full transition-colors;
+}
+.toggle-switch:checked {
+  @apply bg-sapphire;
+}
+.toggle-switch:before {
+  content: '';
+  @apply absolute left-1 top-1 h-3 w-3 rounded-full bg-white transition-transform;
+}
+.toggle-switch:checked:before {
+  transform: translateX(20px);
 }
