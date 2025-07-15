@@ -1,10 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
+import { Bar, Doughnut } from 'react-chartjs-2'
+import {
+  Chart,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from 'chart.js'
 import TimelineEntry from './components/TimelineEntry'
 import EditRecords from './EditRecords'
 import PayoutSummary from './PayoutSummary'
 import SettingsLogs from './SettingsLogs'
 import AdminHeader from './components/AdminHeader'
+
+Chart.register(BarElement, CategoryScale, LinearScale, ArcElement, Tooltip, Legend)
 
 const actions = [
   { kind: 'clockin', icon: '✅', label: 'Clock In' },
@@ -100,8 +112,86 @@ function OverviewTab() {
     return () => clearInterval(id)
   }, [])
 
+  const stats = useMemo(() => {
+    let total = 0
+    let working = 0
+    let hours = 0
+    let late = 0
+    const barLabels = []
+    const barTimes = []
+    data.forEach((emp) => {
+      total += 1
+      const m = computeMetrics(emp.events)
+      if (m.online) working += 1
+      hours += m.workedMs / 3600000
+      const firstIn = emp.events.find(
+        (e) => e.kind === 'clockin' || e.kind === 'in'
+      )
+      if (firstIn) {
+        const d = new Date(firstIn.timestamp)
+        barLabels.push(emp.id)
+        barTimes.push(d.getHours() + d.getMinutes() / 60)
+        if (d.getHours() > 9 || (d.getHours() === 9 && d.getMinutes() > 15)) {
+          late += 1
+        }
+      } else {
+        late += 1
+      }
+    })
+    return { total, working, hours, late, barLabels, barTimes }
+  }, [data])
+
+  const barData = {
+    labels: stats.barLabels,
+    datasets: [
+      {
+        label: 'Clock In Hour',
+        data: stats.barTimes,
+        backgroundColor: '#3b82f6',
+      },
+    ],
+  }
+
+  const doughnutData = {
+    labels: ['Working', 'Not Working'],
+    datasets: [
+      {
+        data: [stats.working, Math.max(0, stats.total - stats.working)],
+        backgroundColor: ['#22c55e', '#ef4444'],
+      },
+    ],
+  }
+
   return (
     <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="card text-center">
+          <div className="text-sm">Total Clocked In</div>
+          <div className="text-2xl font-bold">
+            {stats.working} / {stats.total}
+          </div>
+        </div>
+        <div className="card text-center">
+          <div className="text-sm">Total Hours Today</div>
+          <div className="text-2xl font-bold">
+            {stats.hours.toFixed(2)}h
+          </div>
+        </div>
+        <div className="card text-center">
+          <div className="text-sm">Late/Missed Clock-In</div>
+          <div className="text-2xl font-bold">{stats.late}</div>
+        </div>
+        <div className="card text-center">
+          <div className="text-sm">Employees</div>
+          <div className="text-2xl font-bold">{stats.total}</div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Bar data={barData} />
+        <Doughnut data={doughnutData} />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.map(emp => {
           const m = computeMetrics(emp.events)
