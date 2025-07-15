@@ -3,6 +3,7 @@ import axios from 'axios'
 import TimelineEntry from './components/TimelineEntry'
 import EditRecords from './EditRecords'
 import PayoutSummary from './PayoutSummary'
+import SettingsLogs from './SettingsLogs'
 
 const actions = [
   { kind: 'clockin', icon: '✅', label: 'Clock In' },
@@ -235,6 +236,8 @@ export default function AdminControlCenter() {
         return <EditRecords />
       case 'payout':
         return <PayoutSummary />
+      case 'settings':
+        return <SettingsLogs />
       default:
         return null
     }
@@ -246,6 +249,7 @@ export default function AdminControlCenter() {
         <button className={tab==='directory' ? 'font-bold' : ''} onClick={() => setTab('directory')}>Employees Directory</button>
         <button className={tab==='edit' ? 'font-bold' : ''} onClick={() => setTab('edit')}>Edit Records</button>
         <button className={tab==='payout' ? 'font-bold' : ''} onClick={() => setTab('payout')}>Payout Summary</button>
+        <button className={tab==='settings' ? 'font-bold' : ''} onClick={() => setTab('settings')}>Settings & Logs</button>
       </div>
       {renderTab()}
     </div>
