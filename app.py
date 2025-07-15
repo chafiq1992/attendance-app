@@ -51,6 +51,27 @@ def db_connect():
     return psycopg2.connect(url)
 
 
+def log_admin_action(action: str, data: str | None = None) -> None:
+    """Insert a record into the admin_logs table."""
+    with db_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS admin_logs (
+                    id SERIAL PRIMARY KEY,
+                    action TEXT NOT NULL,
+                    data TEXT,
+                    created_at TIMESTAMPTZ DEFAULT now()
+                )
+                """
+            )
+            cur.execute(
+                "INSERT INTO admin_logs (action, data) VALUES (%s, %s)",
+                (action, data),
+            )
+        conn.commit()
+
+
 def table_name(employee: str) -> str:
     """Sanitize employee name for use as a table name."""
     sanitized = "employee_" + "".join(
@@ -120,7 +141,7 @@ def record_time(employee: str, action: str, day: int):
             ).format(table=sql.Identifier(tbl), col=sql.Identifier(col))
             cur.execute(query, (now.date(), now))
         conn.commit()
-
+    log_admin_action(action, f"{employee}:{time_str}")
     return True, f"{action.upper()} recorded @ {time_str}"
 
 
@@ -175,6 +196,7 @@ def record_value(employee: str, label: str, date: dt.date, value: str):
             cur.execute(query, (date, str(value)))
         conn.commit()
     logger.info("Recorded %s for %s on %s: %s", label, employee, date, value)
+    log_admin_action(f"record_{label}", f"{employee}:{date}:{value}")
     return True, "OK"
 
 # --------------------------------------------------------------------
@@ -211,6 +233,7 @@ def payout():
 
     today = dt.datetime.now(dt.timezone.utc).date()
     record_value(employee, "payout", today, amount)
+    log_admin_action("payout", f"{employee}:{amount}")
     return jsonify(ok=True, msg="Payout recorded")
 
 
@@ -232,6 +255,7 @@ def advance():
         day = dt.datetime.now(dt.timezone.utc).date()
 
     record_value(employee, "advance", day, amount)
+    log_admin_action("advance", f"{employee}:{amount}:{day}")
     return jsonify(ok=True, msg="Advance recorded")
 
 
@@ -254,6 +278,7 @@ def record_order():
         day = dt.datetime.now(dt.timezone.utc).date()
 
     record_value(employee, "orders", day, f"{order_id}:{total}")
+    log_admin_action("order", f"{employee}:{order_id}:{total}:{day}")
     return jsonify(ok=True, msg="Order recorded")
 
 

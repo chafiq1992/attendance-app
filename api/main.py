@@ -5,10 +5,17 @@ import calendar
 
 from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select, update, delete, func, and_
+from sqlalchemy import select, update, delete, insert, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Event, AsyncSessionLocal, init_models
+from .models import (
+    Event,
+    Setting,
+    AdminUser,
+    AdminLog,
+    AsyncSessionLocal,
+    init_models,
+)
 
 app = FastAPI()
 
@@ -25,6 +32,19 @@ UNDER_TIME_PENALTY_MIN = 15
 @app.on_event("startup")
 async def on_startup() -> None:
     await init_models()
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Setting))
+        rows = result.scalars().all()
+        for row in rows:
+            if row.key == "WORK_DAY_HOURS":
+                global WORK_DAY_HOURS
+                WORK_DAY_HOURS = float(row.value)
+            elif row.key == "GRACE_PERIOD_MIN":
+                global GRACE_PERIOD_MIN
+                GRACE_PERIOD_MIN = float(row.value)
+            elif row.key == "UNDER_TIME_PENALTY_MIN":
+                global UNDER_TIME_PENALTY_MIN
+                UNDER_TIME_PENALTY_MIN = float(row.value)
 
 async def get_session() -> AsyncSession:
     async with AsyncSessionLocal() as session:
@@ -51,6 +71,10 @@ async def create_event(
     session.add(event)
     await session.commit()
     await session.refresh(event)
+    await session.execute(
+        insert(AdminLog).values(action="create_event", data=f"{employee_id}:{kind}")
+    )
+    await session.commit()
     return {"id": event.id}
 
 @app.get("/events", response_model=List[dict])
@@ -108,6 +132,10 @@ async def update_event(
         event.timestamp = payload.timestamp
     await session.commit()
     await session.refresh(event)
+    await session.execute(
+        insert(AdminLog).values(action="update_event", data=str(event_id))
+    )
+    await session.commit()
     return {"id": event.id}
 
 @app.delete("/events/{event_id}", response_model=dict)
@@ -116,6 +144,10 @@ async def delete_event(event_id: int, session: AsyncSession = Depends(get_sessio
     result = await session.execute(stmt)
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Event not found")
+    await session.commit()
+    await session.execute(
+        insert(AdminLog).values(action="delete_event", data=str(event_id))
+    )
     await session.commit()
     return {"ok": True}
 
@@ -283,6 +315,98 @@ async def get_summary(
     else:
         summary = _summarize_range(events, start_dt, end_dt)
     return summary
+
+
+class SettingPayload(BaseModel):
+    key: str
+    value: str
+
+
+class UserPayload(BaseModel):
+    username: str
+
+
+class LogPayload(BaseModel):
+    action: str
+    data: Optional[str] | None = None
+
+
+@app.get("/admin/settings", response_model=dict)
+async def get_settings(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Setting))
+    rows = result.scalars().all()
+    return {row.key: row.value for row in rows}
+
+
+@app.post("/admin/settings", response_model=dict)
+async def set_setting(payload: SettingPayload, session: AsyncSession = Depends(get_session)):
+    stmt = update(Setting).where(Setting.key == payload.key).values(value=payload.value)
+    result = await session.execute(stmt)
+    if result.rowcount == 0:
+        session.add(Setting(key=payload.key, value=payload.value))
+    await session.commit()
+    if payload.key == "WORK_DAY_HOURS":
+        global WORK_DAY_HOURS
+        WORK_DAY_HOURS = float(payload.value)
+    elif payload.key == "GRACE_PERIOD_MIN":
+        global GRACE_PERIOD_MIN
+        GRACE_PERIOD_MIN = float(payload.value)
+    elif payload.key == "UNDER_TIME_PENALTY_MIN":
+        global UNDER_TIME_PENALTY_MIN
+        UNDER_TIME_PENALTY_MIN = float(payload.value)
+    return {"ok": True}
+
+
+@app.get("/admin/users", response_model=List[dict])
+async def list_admins(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(AdminUser))
+    users = result.scalars().all()
+    return [{"id": u.id, "username": u.username} for u in users]
+
+
+@app.post("/admin/users", response_model=dict)
+async def add_admin(payload: UserPayload, session: AsyncSession = Depends(get_session)):
+    user = AdminUser(username=payload.username)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return {"id": user.id}
+
+
+@app.delete("/admin/users/{user_id}", response_model=dict)
+async def delete_admin(user_id: int, session: AsyncSession = Depends(get_session)):
+    stmt = delete(AdminUser).where(AdminUser.id == user_id)
+    result = await session.execute(stmt)
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    await session.commit()
+    return {"ok": True}
+
+
+@app.get("/admin/logs", response_model=List[dict])
+async def list_logs(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(
+        select(AdminLog).order_by(AdminLog.created_at.desc()).limit(100)
+    )
+    logs = result.scalars().all()
+    return [
+        {
+            "id": l.id,
+            "action": l.action,
+            "data": l.data,
+            "created_at": l.created_at.isoformat(),
+        }
+        for l in logs
+    ]
+
+
+@app.post("/admin/logs", response_model=dict)
+async def create_log(payload: LogPayload, session: AsyncSession = Depends(get_session)):
+    log = AdminLog(action=payload.action, data=payload.data)
+    session.add(log)
+    await session.commit()
+    await session.refresh(log)
+    return {"id": log.id}
 
 # Expose app for uvicorn/gunicorn
 __all__ = ["app"]
