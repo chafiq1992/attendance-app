@@ -80,3 +80,36 @@ body {
     opacity: 0;
   }
 }
+
+/* Micro-interaction helpers */
+.shake {
+  animation: shake 0.3s;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.flash-green {
+  animation: flash-green 1s;
+}
+@keyframes flash-green {
+  from { background-color: rgba(34,197,94,0.3); }
+  to { background-color: transparent; }
+}
+.flash-red {
+  animation: flash-red 1s;
+}
+@keyframes flash-red {
+  from { background-color: rgba(239,68,68,0.3); }
+  to { background-color: transparent; }
+}
+.accordion-bg {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.05), transparent);
+}
+.kpi-value {
+  font-size: 1.25rem;
+}
+.kpi-label {
+  font-size: 0.8rem;
+}
