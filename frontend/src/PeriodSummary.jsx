@@ -1,8 +1,5 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { useToast } from './components/Toast'
-import Snackbar from './components/Snackbar'
-import AnimatedNumber from './components/AnimatedNumber'
 
 export default function PeriodSummary() {
   const [employee, setEmployee] = useState('')
@@ -14,10 +11,6 @@ export default function PeriodSummary() {
   const [orderId, setOrderId] = useState('')
   const [orderTotal, setOrderTotal] = useState('')
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [advanceError, setAdvanceError] = useState(false)
-  const [orderError, setOrderError] = useState(false)
-  const [undo, setUndo] = useState(null)
-  const toast = useToast()
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setEmployee(params.get('employee') || params.get('driver') || '')
@@ -50,16 +43,11 @@ export default function PeriodSummary() {
   }, [employee])
 
   const saveAdvance = async () => {
-    if (!advance) {
-      setAdvanceError(true)
-      setTimeout(() => setAdvanceError(false), 300)
-      return
-    }
+    if (!advance) return
     try {
       await axios.post('/advance', { employee, amount: advance, date: advanceDate })
-      setMonths((prev) => {
-        const before = JSON.parse(JSON.stringify(prev))
-        const updated = prev.map((m) => {
+      setMonths((prev) =>
+        prev.map((m) => {
           if (!advanceDate.startsWith(m.monthStr)) return m
           const idx = Number(advanceDate.slice(-2)) <= 15 ? 0 : 1
           const periods = m.periods.slice()
@@ -72,11 +60,8 @@ export default function PeriodSummary() {
           })
           periods[idx] = p
           return { ...m, periods }
-        })
-        setUndo({ message: 'Advance added', undo: () => setMonths(before) })
-        return updated
-      })
-      toast('Advance added \u2713')
+        }),
+      )
       setAdvance('')
     } catch {
       /* ignore */
@@ -84,16 +69,11 @@ export default function PeriodSummary() {
   }
 
   const saveOrder = async () => {
-    if (!orderId || !orderTotal) {
-      setOrderError(true)
-      setTimeout(() => setOrderError(false), 300)
-      return
-    }
+    if (!orderId || !orderTotal) return
     try {
       await axios.post('/record-order', { employee, order_id: orderId, total: orderTotal, date: orderDate })
-      setMonths((prev) => {
-        const before = JSON.parse(JSON.stringify(prev))
-        const updated = prev.map((m) => {
+      setMonths((prev) =>
+        prev.map((m) => {
           if (!orderDate.startsWith(m.monthStr)) return m
           const idx = Number(orderDate.slice(-2)) <= 15 ? 0 : 1
           const periods = m.periods.slice()
@@ -102,11 +82,8 @@ export default function PeriodSummary() {
           p.ordersTotal = Number(p.ordersTotal) + Number(orderTotal)
           periods[idx] = p
           return { ...m, periods }
-        })
-        setUndo({ message: 'Order saved', undo: () => setMonths(before) })
-        return updated
-      })
-      toast('Order saved \u2713')
+        }),
+      )
       setOrderId('')
       setOrderTotal('')
     } catch {
@@ -115,7 +92,6 @@ export default function PeriodSummary() {
   }
 
   return (
-    <>
     <div className="p-4 space-y-4">
       {employee && <h2 className="text-xl font-bold">{employee}</h2>}
       {months.map((m, idx) => (
@@ -127,7 +103,7 @@ export default function PeriodSummary() {
             {m.label}
           </button>
           {open === idx && (
-            <div className="space-y-4 accordion-bg rounded-xl p-2">
+            <div className="space-y-4">
               <div className="sticky top-0 z-10 flex justify-center">
                 <div className="flex bg-white/10 rounded-full overflow-hidden">
                   {m.periods.map((p, i) => (
@@ -145,8 +121,23 @@ export default function PeriodSummary() {
                 const p = m.periods[activePeriod[idx] || 0]
                 if (!p) return null
                 return (
-                  <div className="space-y-4 accordion-bg rounded-xl p-2">
-                    <KPIRows data={p} />
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                      <div className="whitespace-nowrap">Worked Days</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.workedDays}</div>
+                      <div className="whitespace-nowrap">Extra Hours</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.extraHours}</div>
+                      <div className="whitespace-nowrap">Payout (DH)</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.payout}</div>
+                      <div className="whitespace-nowrap">Advances (DH)</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.advance}</div>
+                      <div className="whitespace-nowrap">Balance</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.balance}</div>
+                      <div className="whitespace-nowrap">Orders Count</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.orders}</div>
+                      <div className="whitespace-nowrap">Orders Total</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.ordersTotal}</div>
+                    </div>
                     <details className="card p-2">
                       <summary className="cursor-pointer font-semibold">Advances History</summary>
                       <div className="mt-2 space-y-2 text-sm">
@@ -174,32 +165,14 @@ export default function PeriodSummary() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="card space-y-2">
                         <div className="font-semibold mb-1">Add Advance 💸</div>
-                        <input
-                          type="number"
-                          className={`w-full rounded bg-white/10 p-1 ${advanceError ? 'border-red-500 shake' : ''}`}
-                          placeholder="Amount"
-                          value={advance}
-                          onChange={(e) => setAdvance(e.target.value)}
-                        />
+                        <input type="number" className="w-full rounded bg-white/10 p-1" placeholder="Amount" value={advance} onChange={(e) => setAdvance(e.target.value)} />
                         <input type="date" className="w-full rounded bg-white/10 p-1" value={advanceDate} onChange={(e) => setAdvanceDate(e.target.value)} />
                         <button onClick={saveAdvance} className="btn btn-sapphire w-full">Apply</button>
                       </div>
                       <div className="card space-y-2">
                         <div className="font-semibold mb-1">Add Order 📑</div>
-                        <input
-                          type="text"
-                          className={`w-full rounded bg-white/10 p-1 ${orderError ? 'border-red-500 shake' : ''}`}
-                          placeholder="Order ID"
-                          value={orderId}
-                          onChange={(e) => setOrderId(e.target.value)}
-                        />
-                        <input
-                          type="number"
-                          className={`w-full rounded bg-white/10 p-1 ${orderError ? 'border-red-500 shake' : ''}`}
-                          placeholder="Total"
-                          value={orderTotal}
-                          onChange={(e) => setOrderTotal(e.target.value)}
-                        />
+                        <input type="text" className="w-full rounded bg-white/10 p-1" placeholder="Order ID" value={orderId} onChange={(e) => setOrderId(e.target.value)} />
+                        <input type="number" className="w-full rounded bg-white/10 p-1" placeholder="Total" value={orderTotal} onChange={(e) => setOrderTotal(e.target.value)} />
                         <input type="date" className="w-full rounded bg-white/10 p-1" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
                         <button onClick={saveOrder} className="btn btn-sapphire w-full">Apply</button>
                       </div>
@@ -212,42 +185,6 @@ export default function PeriodSummary() {
                 })()}
             </div>
           )}
-        </div>
-      ))}
-    </div>
-    <Snackbar action={undo} onClose={() => setUndo(null)} />
-    </>
-  )
-}
-
-function KPIRows({ data }) {
-  const [flash, setFlash] = useState('')
-  const prev = useRef(data.balance)
-  useEffect(() => {
-    if (prev.current !== data.balance) {
-      setFlash(data.balance > prev.current ? 'flash-green' : 'flash-red')
-      prev.current = data.balance
-      const id = setTimeout(() => setFlash(''), 500)
-      return () => clearTimeout(id)
-    }
-  }, [data.balance])
-
-  const rows = [
-    ['Worked Days', data.workedDays],
-    ['⏱️ Extra Hours', data.extraHours],
-    ['Payout (DH)', data.payout],
-    ['💸 Advances', data.advance],
-    ['Balance', data.balance, flash],
-    ['Orders Count 📦', data.orders],
-    ['Orders Total', data.ordersTotal],
-  ]
-
-  return (
-    <div className="divide-y divide-white/20">
-      {rows.map(([label, val, extraFlash]) => (
-        <div key={label} className={`flex justify-between items-end py-1 ${extraFlash || ''}`}> 
-          <span className="kpi-label">{label}</span>
-          <span className="kpi-value"><AnimatedNumber value={val} /></span>
         </div>
       ))}
     </div>
