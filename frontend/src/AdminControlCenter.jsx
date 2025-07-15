@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import TimelineEntry from './components/TimelineEntry'
+import EditRecords from './EditRecords'
+import PayoutSummary from './PayoutSummary'
 
 const actions = [
   { kind: 'clockin', icon: '✅', label: 'Clock In' },
@@ -223,13 +225,29 @@ function DirectoryTab() {
 
 export default function AdminControlCenter() {
   const [tab, setTab] = useState('overview')
+  const renderTab = () => {
+    switch (tab) {
+      case 'overview':
+        return <OverviewTab />
+      case 'directory':
+        return <DirectoryTab />
+      case 'edit':
+        return <EditRecords />
+      case 'payout':
+        return <PayoutSummary />
+      default:
+        return null
+    }
+  }
   return (
     <div className="p-4 space-y-4">
       <div className="flex space-x-4 border-b pb-2">
         <button className={tab==='overview' ? 'font-bold' : ''} onClick={() => setTab('overview')}>Overview</button>
         <button className={tab==='directory' ? 'font-bold' : ''} onClick={() => setTab('directory')}>Employees Directory</button>
+        <button className={tab==='edit' ? 'font-bold' : ''} onClick={() => setTab('edit')}>Edit Records</button>
+        <button className={tab==='payout' ? 'font-bold' : ''} onClick={() => setTab('payout')}>Payout Summary</button>
       </div>
-      {tab === 'overview' ? <OverviewTab /> : <DirectoryTab />}
+      {renderTab()}
     </div>
   )
 }
