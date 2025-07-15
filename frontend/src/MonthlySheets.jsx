@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import TimelineEntry from './components/TimelineEntry'
 
 export default function MonthlySheets() {
   const [employee, setEmployee] = useState('')
@@ -128,18 +129,25 @@ function DayCards({ rows }) {
   return (
     <div>
       <div className="flex overflow-x-auto space-x-2 pb-2">
-        {rows.map(r => (
-          <div
-            key={r.date}
-            className={`min-w-[9rem] flex-shrink-0 bg-white/10 rounded-xl p-2 text-xs ${r.weekend ? 'bg-violet/10' : ''} ${r.holiday ? 'bg-amber-200/20' : ''}`}
-          >
-            <div className="font-semibold mb-1">📅 {r.date}</div>
-            <div>⏰ In: {r.in || '–'} | Out: {r.out || '–'}</div>
-            <div>☕ Break: {r.breakStart || '–'} / {r.breakEnd || '–'}</div>
-            <div>⏱️ Extra: {r.extraStart || '–'} / {r.extraEnd || '–'}</div>
-            <div>➕ Extra Total: {r.extraTotal ? `${r.extraTotal} h` : '– h'}</div>
-          </div>
-        ))}
+        {rows.map(r => {
+          const evs = []
+          if (r.in) evs.push({ label: 'Clock In', icon: '✅', time: r.in })
+          if (r.breakStart) evs.push({ label: 'Start Break', icon: '🛑', time: r.breakStart })
+          if (r.breakEnd) evs.push({ label: 'End Break', icon: '✅', time: r.breakEnd })
+          if (r.out) evs.push({ label: 'Clock Out', icon: '🕔', time: r.out })
+          return (
+            <div
+              key={r.date}
+              className={`min-w-[9rem] flex-shrink-0 bg-white/10 rounded-xl p-2 text-xs space-y-1 ${r.weekend ? 'bg-violet/10' : ''} ${r.holiday ? 'bg-amber-200/20' : ''}`}
+            >
+              <div className="font-semibold mb-1">📅 {r.date}</div>
+              {evs.map((ev, idx) => (
+                <TimelineEntry key={idx} index={idx} icon={ev.icon} label={ev.label} time={ev.time} />
+              ))}
+              <div>➕ Extra Total: {r.extraTotal ? `${r.extraTotal} h` : '– h'}</div>
+            </div>
+          )
+        })}
       </div>
       <div className="bg-white/20 text-center font-semibold py-1 rounded-b-xl">
         ✅ Days Worked: {daysWorked} | 🕒 Extra Hours: {extraHours.toFixed(1)}h
