@@ -1,0 +1,7 @@
+{
+    "name": "Attendance App",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "workspaceFolder": "/workspace/attendance-app"
+}

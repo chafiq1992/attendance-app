@@ -63,6 +63,11 @@ When deploying, the Dockerfile builds the frontend and copies the compiled
 files from `frontend/dist` into the final image so the backend can serve them
 directly. No manual npm commands are needed in the deployment pipeline.
 
+
+## Development container
+
+Codex launches this repository inside a dev container with Python and Node dependencies already installed. You can start working immediately without running `pip` or `npm` commands.
+
 ## Deploying
 
 The `deploy.sh` script builds a Docker image and deploys it to Cloud Run. Edit the
