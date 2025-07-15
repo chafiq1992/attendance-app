@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 import axios from 'axios'
 
 export default function MonthlySheets() {
@@ -11,7 +10,6 @@ export default function MonthlySheets() {
 
   const [months, setMonths] = useState([])
   const [open, setOpen] = useState(null)
-  const [highlighted, setHighlighted] = useState('')
 
   useEffect(() => {
     if (!employee) return
@@ -38,32 +36,10 @@ export default function MonthlySheets() {
   }, [employee])
   return (
     <div className="p-4 space-y-4 overflow-auto h-full scrollbar-thin scrollbar-thumb-sapphire/50">
-      {employee && <h2 className="text-xl font-bold mb-2">{employee}</h2>}
-      {months.length > 0 && (
-        <div className="sticky top-12 z-20">
-          <select
-            className="bg-white/10 backdrop-blur-md rounded-md p-1 text-sm"
-            onChange={(e) => {
-              const idx = months.findIndex((m) => m.monthStr === e.target.value)
-              if (idx === 0) {
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-              } else if (idx > 0) {
-                setOpen(idx - 1)
-                document.getElementById(`month-${idx}`)?.scrollIntoView({ behavior: 'smooth' })
-              }
-            }}
-          >
-            {months.map((m, idx) => (
-              <option key={m.monthStr} value={m.monthStr}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {employee && <h2 className="text-xl font-bold">{employee}</h2>}
       {months[0] && (
-        <div id="month-0" className="sticky top-0 z-10">
-          <div className="card bg-gradient-to-br from-sapphire to-violet shadow-xl">
+        <div className="sticky top-0 z-10">
+          <div className="card">
             <div className="bg-sapphire text-center -mx-6 -mt-6 rounded-t-xl py-2 text-white font-semibold">
               {months[0].label}
             </div>
@@ -79,7 +55,7 @@ export default function MonthlySheets() {
         </div>
       )}
       {months.slice(1).map((m, idx) => (
-        <div key={m.label} id={`month-${idx + 1}`} className="card bg-white/5 shadow-lg">
+        <div key={m.label} className="card bg-white/5">
           <button
             onClick={() => setOpen(open === idx ? null : idx)}
             className="w-full text-center font-semibold mb-2 flex justify-center"
@@ -88,19 +64,11 @@ export default function MonthlySheets() {
             {m.label}
             <span className="ml-1">{open === idx ? '▲' : '▼'}</span>
           </button>
-          <AnimatePresence initial={false}>
-            {open === idx && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                style={{ overflow: 'hidden' }}
-              >
-                <DayCards rows={m.rows || []} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {open === idx && (
+            <div>
+              <DayCards rows={m.rows || []} />
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -112,7 +80,7 @@ function Table({ rows }) {
   const extraHours = rows.reduce((s, r) => s + (parseFloat(r.extraTotal) || 0), 0)
   return (
     <div className="overflow-auto">
-      <table className="w-full text-xs sm:text-sm table-fixed divide-y divide-white/10">
+      <table className="w-full text-xs sm:text-sm table-fixed">
         <thead className="bg-white/10 sticky top-0 z-10">
           <tr>
             <th className="p-1">Date</th>
@@ -126,31 +94,25 @@ function Table({ rows }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => {
-            const missingCheckout = r.in && !r.out
-            const missingBreak = (r.breakStart && !r.breakEnd) || (!r.breakStart && r.breakEnd)
-            const hasExtra = parseFloat(r.extraTotal) > 0
-            let border = ''
-            if (hasExtra) border = 'border-blue-500'
-            if (missingCheckout || missingBreak) border = 'border-orange-500'
-            if (r.in && r.out && !missingBreak) border = 'border-emerald-500'
-            return (
-              <tr
-                key={r.date}
-                onClick={() => setHighlighted(highlighted === r.date ? '' : r.date)}
-                className={`${i % 2 ? 'bg-white/5' : ''}${r.weekend ? ' bg-violet/10' : ''}${r.holiday ? ' bg-amber-200/20' : ''}${highlighted === r.date ? ' bg-sapphire/20' : ''} border-l-4 ${border}`}
-              >
-                <td className="p-1 text-center break-words font-bold text-base">{r.date}</td>
-                <td className="p-1 text-center break-words font-mono text-[0.85rem]">{r.in}</td>
-                <td className="p-1 text-center break-words font-mono text-[0.85rem]">{r.out}</td>
-                <td className="p-1 text-center break-words font-mono text-[0.85rem]">{r.breakStart}</td>
-                <td className="p-1 text-center break-words font-mono text-[0.85rem]">{r.breakEnd}</td>
-                <td className="p-1 text-center break-words font-mono text-[0.85rem]">{r.extraStart}</td>
-                <td className="p-1 text-center break-words font-mono text-[0.85rem]">{r.extraEnd}</td>
-                <td className="p-1 text-center break-words font-mono text-[0.85rem]">{r.extraTotal}</td>
-              </tr>
-            )
-          })}
+          {rows.map((r, i) => (
+            <tr
+              key={r.date}
+              className={
+                (i % 2 ? 'bg-white/5' : '') +
+                (r.weekend ? ' bg-violet/10' : '') +
+                (r.holiday ? ' bg-amber-200/20' : '')
+              }
+            >
+              <td className="p-1 text-center break-words">{r.date}</td>
+              <td className="p-1 text-center break-words">{r.in}</td>
+              <td className="p-1 text-center break-words">{r.out}</td>
+              <td className="p-1 text-center break-words">{r.breakStart}</td>
+              <td className="p-1 text-center break-words">{r.breakEnd}</td>
+              <td className="p-1 text-center break-words">{r.extraStart}</td>
+              <td className="p-1 text-center break-words">{r.extraEnd}</td>
+              <td className="p-1 text-center break-words">{r.extraTotal}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
       <div className="bg-white/20 text-center font-semibold py-1 sticky bottom-0">
@@ -166,28 +128,18 @@ function DayCards({ rows }) {
   return (
     <div>
       <div className="flex overflow-x-auto space-x-2 pb-2">
-        {rows.map(r => {
-          const missingCheckout = r.in && !r.out
-          const missingBreak = (r.breakStart && !r.breakEnd) || (!r.breakStart && r.breakEnd)
-          const hasExtra = parseFloat(r.extraTotal) > 0
-          let border = ''
-          if (hasExtra) border = 'border-blue-500'
-          if (missingCheckout || missingBreak) border = 'border-orange-500'
-          if (r.in && r.out && !missingBreak) border = 'border-emerald-500'
-          return (
-            <div
-              key={r.date}
-              onClick={() => setHighlighted(highlighted === r.date ? '' : r.date)}
-              className={`min-w-[9rem] flex-shrink-0 bg-white/10 rounded-xl p-2 text-xs ${r.weekend ? 'bg-violet/10' : ''} ${r.holiday ? 'bg-amber-200/20' : ''} ${highlighted === r.date ? ' bg-sapphire/20' : ''} border-l-4 ${border}`}
-            >
-              <div className="font-semibold text-base mb-1">📅 {r.date}</div>
-              <div className="font-mono text-[0.85rem]">⏰ In: {r.in || '–'} | Out: {r.out || '–'}</div>
-              <div className="font-mono text-[0.85rem]">☕ Break: {r.breakStart || '–'} / {r.breakEnd || '–'}</div>
-              <div className="font-mono text-[0.85rem]">⏱️ Extra: {r.extraStart || '–'} / {r.extraEnd || '–'}</div>
-              <div className="font-mono text-[0.85rem]">➕ Extra Total: {r.extraTotal ? `${r.extraTotal} h` : '– h'}</div>
-            </div>
-          )
-        })}
+        {rows.map(r => (
+          <div
+            key={r.date}
+            className={`min-w-[9rem] flex-shrink-0 bg-white/10 rounded-xl p-2 text-xs ${r.weekend ? 'bg-violet/10' : ''} ${r.holiday ? 'bg-amber-200/20' : ''}`}
+          >
+            <div className="font-semibold mb-1">📅 {r.date}</div>
+            <div>⏰ In: {r.in || '–'} | Out: {r.out || '–'}</div>
+            <div>☕ Break: {r.breakStart || '–'} / {r.breakEnd || '–'}</div>
+            <div>⏱️ Extra: {r.extraStart || '–'} / {r.extraEnd || '–'}</div>
+            <div>➕ Extra Total: {r.extraTotal ? `${r.extraTotal} h` : '– h'}</div>
+          </div>
+        ))}
       </div>
       <div className="bg-white/20 text-center font-semibold py-1 rounded-b-xl">
         ✅ Days Worked: {daysWorked} | 🕒 Extra Hours: {extraHours.toFixed(1)}h
