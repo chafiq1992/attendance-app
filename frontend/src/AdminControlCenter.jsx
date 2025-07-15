@@ -239,9 +239,12 @@ function OverviewTab() {
   )
 }
 
+import EmployeeInlineDashboard from './components/EmployeeInlineDashboard'
+
 function DirectoryTab() {
   const [employees, setEmployees] = useState([])
   const [query, setQuery] = useState('')
+  const [expanded, setExpanded] = useState({})
   useEffect(() => {
     const fetchData = async () => {
       const month = new Date().toISOString().slice(0, 7)
@@ -295,7 +298,7 @@ function DirectoryTab() {
             <th className="border px-2">Status</th>
             <th className="border px-2">Worked Days</th>
             <th className="border px-2">Total Extra Hours</th>
-            <th className="border px-2">View Details</th>
+            <th className="border px-2">▼</th>
           </tr>
         </thead>
         <tbody>
@@ -304,6 +307,7 @@ function DirectoryTab() {
             const todays = emp.events?.filter(e => e.timestamp.startsWith(today)) || []
             const status = todays.length ? computeMetrics(todays).status : 'Clocked Out'
             return (
+              <>
               <tr key={emp.id} className="text-center">
                 <td className="border px-2">{emp.id}</td>
                 <td className="border px-2">
@@ -311,10 +315,18 @@ function DirectoryTab() {
                 </td>
                 <td className="border px-2">{emp.workedDays}</td>
                 <td className="border px-2">{emp.extraHours}</td>
-                <td className="border px-2">
-                  <a className="underline" href={`/employee-dashboard?employee=${encodeURIComponent(emp.id)}`}>View Details</a>
+                <td className="border px-2 cursor-pointer" onClick={() => setExpanded(prev => ({ ...prev, [emp.id]: !prev[emp.id] }))}>
+                  {expanded[emp.id] ? '▲' : '▼'}
                 </td>
               </tr>
+              {expanded[emp.id] && (
+                <tr>
+                  <td colSpan={5} className="border px-2">
+                    <EmployeeInlineDashboard employee={emp.id} />
+                  </td>
+                </tr>
+              )}
+              </>
             )
           })}
         </tbody>
