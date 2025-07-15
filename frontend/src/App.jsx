@@ -5,6 +5,7 @@ import MonthlySheets from './MonthlySheets'
 import PeriodSummary from './PeriodSummary'
 import Performance from './Performance'
 import NavBar from './components/NavBar'
+import Header from './components/Header'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
 
   return (
     <>
+      <Header />
       <AnimatePresence mode="wait">
         <motion.div
           key={path}
@@ -27,7 +29,7 @@ export default function App() {
           animate={shouldReduce ? {} : { opacity: 1, x: 0 }}
           exit={shouldReduce ? {} : { opacity: 0, x: -50 }}
           transition={{ duration: 0.3 }}
-          className="pt-4 pb-16 min-h-screen"
+          className="pt-[80px] pb-16 min-h-screen"
         >
           <Page />
         </motion.div>
