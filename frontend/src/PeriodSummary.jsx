@@ -141,8 +141,9 @@ export default function PeriodSummary() {
                   ))}
                 </div>
               </div>
-              {m.periods[activePeriod[idx] || 0] && (() => {
+              {(() => {
                 const p = m.periods[activePeriod[idx] || 0]
+                if (!p) return null
                 return (
                   <div className="space-y-4 accordion-bg rounded-xl p-2">
                     <KPIRows data={p} />
