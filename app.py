@@ -288,12 +288,16 @@ def employee_data():
     for day, cash, orders, payout, advance in rows:
         orders_count = 0
         orders_total = 0.0
+        orders_entries = []
         if orders:
             for part in str(orders).split(','):
                 if ':' in part:
                     try:
-                        orders_total += float(part.split(':')[1])
+                        oid, amt_str = part.split(':', 1)
+                        amt = float(amt_str)
+                        orders_total += amt
                         orders_count += 1
+                        orders_entries.append({"id": oid, "amount": amt})
                     except Exception:
                         pass
         try:
@@ -311,6 +315,7 @@ def employee_data():
                 "advance": advance_amt,
                 "orders_count": orders_count,
                 "orders_total": orders_total,
+                "orders_entries": orders_entries,
             }
         )
     return jsonify(data)

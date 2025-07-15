@@ -5,6 +5,7 @@ export default function PeriodSummary() {
   const [employee, setEmployee] = useState('')
   const [months, setMonths] = useState([])
   const [open, setOpen] = useState(0)
+  const [activePeriod, setActivePeriod] = useState({})
   const [advance, setAdvance] = useState('')
   const [advanceDate, setAdvanceDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [orderId, setOrderId] = useState('')
@@ -26,6 +27,7 @@ export default function PeriodSummary() {
       mths.push({ label, monthStr, periods: [] })
     }
     setMonths(mths)
+    setActivePeriod(mths.reduce((acc, _, i) => ({ ...acc, [i]: 0 }), {}))
     mths.forEach(async (m, idx) => {
       try {
         const [evRes, extraRes] = await Promise.all([
@@ -101,87 +103,85 @@ export default function PeriodSummary() {
             {m.label}
           </button>
           {open === idx && (
-            <div className="grid md:grid-cols-2 gap-4">
-              {m.periods.map((p) => (
-                <div key={p.title} className="card space-y-2">
-                  <div className="bg-sapphire text-white rounded-full px-3 py-1 inline-block font-semibold">
-                    {p.title}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="whitespace-nowrap">Worked Days</div>
-                    <div className="text-right font-semibold whitespace-nowrap">{p.workedDays}</div>
-                    <div className="whitespace-nowrap">Total Hours</div>
-                    <div className="text-right font-semibold whitespace-nowrap">{p.hours}</div>
-                    <div className="whitespace-nowrap">Payout (DH)</div>
-                    <div className="text-right font-semibold whitespace-nowrap">{p.payout}</div>
-                    <div className="whitespace-nowrap">Advances (DH)</div>
-                    <div className="text-right font-semibold whitespace-nowrap">{p.advance}</div>
-                    <div className="whitespace-nowrap">Balance</div>
-                    <div className="text-right font-semibold whitespace-nowrap">{p.balance}</div>
-                    <div className="whitespace-nowrap">Orders Count</div>
-                    <div className="text-right font-semibold whitespace-nowrap">{p.orders}</div>
-                    <div className="whitespace-nowrap">Orders Total</div>
-                    <div className="text-right font-semibold whitespace-nowrap">{p.ordersTotal}</div>
-                  </div>
-                  {p.advanceEntries.length > 0 && (
-                    <div className="text-xs space-y-1">
-                      <div className="font-semibold">Advance History:</div>
-                      <ul className="list-disc ml-4">
-                        {p.advanceEntries.map((a, i) => (
-                          <li key={i} className="whitespace-nowrap">
-                            {a.date.slice(-2)}: {a.amount}
-                          </li>
-                        ))}
-                        <li className="font-semibold">Total: {p.advance}</li>
-                      </ul>
-                    </div>
-                  )}
+            <div className="space-y-4">
+              <div className="sticky top-0 z-10 flex justify-center">
+                <div className="flex bg-white/10 rounded-full overflow-hidden">
+                  {m.periods.map((p, i) => (
+                    <button
+                      key={p.title}
+                      onClick={() => setActivePeriod(prev => ({ ...prev, [idx]: i }))}
+                      className={`px-3 py-1 text-sm font-semibold ${ (activePeriod[idx] || 0) === i ? 'bg-sapphire text-white' : '' }`}
+                    >
+                      {p.title}
+                    </button>
+                  ))}
                 </div>
-              ))}
-              <div className="card space-y-2">
-                <div className="font-semibold mb-1">Add Advance \ud83d\udcb8</div>
-                <input
-                  type="number"
-                  className="w-full rounded bg-white/10 p-1"
-                  placeholder="Amount"
-                  value={advance}
-                  onChange={(e) => setAdvance(e.target.value)}
-                />
-                <input
-                  type="date"
-                  className="w-full rounded bg-white/10 p-1"
-                  value={advanceDate}
-                  onChange={(e) => setAdvanceDate(e.target.value)}
-                />
-                <button onClick={saveAdvance} className="btn btn-sapphire w-full">Apply</button>
               </div>
-              <div className="card space-y-2">
-                <div className="font-semibold mb-1">Record Order \ud83d\udcdf</div>
-                <input
-                  type="text"
-                  className="w-full rounded bg-white/10 p-1"
-                  placeholder="Order ID"
-                  value={orderId}
-                  onChange={(e) => setOrderId(e.target.value)}
-                />
-                <input
-                  type="number"
-                  className="w-full rounded bg-white/10 p-1"
-                  placeholder="Total"
-                  value={orderTotal}
-                  onChange={(e) => setOrderTotal(e.target.value)}
-                />
-                <input
-                  type="date"
-                  className="w-full rounded bg-white/10 p-1"
-                  value={orderDate}
-                  onChange={(e) => setOrderDate(e.target.value)}
-                />
-                <button onClick={saveOrder} className="btn btn-sapphire w-full">Apply</button>
-              </div>
-              <div className="bg-white/20 text-center font-semibold py-2 rounded-xl">
-                Orders Total: {m.periods.reduce((s,p)=>s+p.ordersTotal,0)} | Balance: {m.periods.reduce((s,p)=>s+p.balance,0)}
-              </div>
+              {m.periods[activePeriod[idx] || 0] && (() => {
+                const p = m.periods[activePeriod[idx] || 0]
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                      <div className="whitespace-nowrap">Worked Days</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.workedDays}</div>
+                      <div className="whitespace-nowrap">Extra Hours</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.extraHours}</div>
+                      <div className="whitespace-nowrap">Payout (DH)</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.payout}</div>
+                      <div className="whitespace-nowrap">Advances (DH)</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.advance}</div>
+                      <div className="whitespace-nowrap">Balance</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.balance}</div>
+                      <div className="whitespace-nowrap">Orders Count</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.orders}</div>
+                      <div className="whitespace-nowrap">Orders Total</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.ordersTotal}</div>
+                    </div>
+                    <details className="card p-2">
+                      <summary className="cursor-pointer font-semibold">Advances History</summary>
+                      <div className="mt-2 space-y-2 text-sm">
+                        {p.advanceEntries.map((a, i) => (
+                          <div key={i} className="flex justify-between items-center bg-white/10 rounded px-2 py-1">
+                            <span>{a.date}</span>
+                            <span>{a.amount}</span>
+                            <span>🗑️</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                    <details className="card p-2">
+                      <summary className="cursor-pointer font-semibold">Orders History</summary>
+                      <div className="mt-2 space-y-2 text-sm">
+                        {p.orderEntries?.map((o, i) => (
+                          <div key={i} className="flex justify-between items-center bg-white/10 rounded px-2 py-1">
+                            <span>{o.date}</span>
+                            <span>{o.amount}</span>
+                            <span>🗑️</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="card space-y-2">
+                        <div className="font-semibold mb-1">Add Advance 💸</div>
+                        <input type="number" className="w-full rounded bg-white/10 p-1" placeholder="Amount" value={advance} onChange={(e) => setAdvance(e.target.value)} />
+                        <input type="date" className="w-full rounded bg-white/10 p-1" value={advanceDate} onChange={(e) => setAdvanceDate(e.target.value)} />
+                        <button onClick={saveAdvance} className="btn btn-sapphire w-full">Apply</button>
+                      </div>
+                      <div className="card space-y-2">
+                        <div className="font-semibold mb-1">Add Order 📑</div>
+                        <input type="text" className="w-full rounded bg-white/10 p-1" placeholder="Order ID" value={orderId} onChange={(e) => setOrderId(e.target.value)} />
+                        <input type="number" className="w-full rounded bg-white/10 p-1" placeholder="Total" value={orderTotal} onChange={(e) => setOrderTotal(e.target.value)} />
+                        <input type="date" className="w-full rounded bg-white/10 p-1" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+                        <button onClick={saveOrder} className="btn btn-sapphire w-full">Apply</button>
+                      </div>
+                    </div>
+                    <div className="bg-white/20 text-center font-semibold py-2 rounded-xl">
+                      Worked Days: {m.periods.reduce((s, p2) => s + p2.workedDays, 0)} | Extra Hours: {m.periods.reduce((s, p2) => s + (p2.extraHours || 0), 0)} | Payout: {m.periods.reduce((s, p2) => s + p2.payout, 0)} | Advances: {m.periods.reduce((s, p2) => s + p2.advance, 0)} | Balance: {m.periods.reduce((s, p2) => s + p2.balance, 0)}
+                    </div>
+                  </div>
+                )
+              })() )}
             </div>
           )}
         </div>
@@ -194,8 +194,8 @@ function calcPeriods(events, monthStr, extras = []) {
   const [year, month] = monthStr.split('-').map(Number)
   const daysInMonth = new Date(year, month, 0).getDate()
   const periods = [
-    { title: '1 – 15', workedDays: 0, hours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0, advanceEntries: [] },
-    { title: `16 – ${daysInMonth}`, workedDays: 0, hours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0, advanceEntries: [] },
+    { title: '1 – 15', workedDays: 0, hours: 0, extraHours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0, advanceEntries: [], orderEntries: [] },
+    { title: `16 – ${daysInMonth}`, workedDays: 0, hours: 0, extraHours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0, advanceEntries: [], orderEntries: [] },
   ]
   const mapping = { clockin: 'in', in: 'in', clockout: 'out', out: 'out' }
   const byDay = {}
@@ -209,7 +209,9 @@ function calcPeriods(events, monthStr, extras = []) {
     const idx = d <= 15 ? 0 : 1
     periods[idx].workedDays += 1
     if (info.in && info.out) {
-      periods[idx].hours += (info.out - info.in) / 3600000
+      const hrs = (info.out - info.in) / 3600000
+      periods[idx].hours += hrs
+      if (hrs > 8) periods[idx].extraHours += hrs - 8
     }
   })
 
@@ -224,10 +226,16 @@ function calcPeriods(events, monthStr, extras = []) {
     }
     if (ex.orders_count) p.orders += Number(ex.orders_count)
     if (ex.orders_total) p.ordersTotal += Number(ex.orders_total)
+    if (ex.orders_entries) {
+      ex.orders_entries.forEach((o) => {
+        p.orderEntries.push({ date: ex.date, id: o.id, amount: Number(o.amount) })
+      })
+    }
   })
 
   periods.forEach((p) => {
     p.hours = Number(p.hours.toFixed(2))
+    p.extraHours = Number(p.extraHours.toFixed(2))
     p.balance = p.payout - p.advance
   })
   return periods
