@@ -57,6 +57,9 @@ npm run dev     # development mode
 npm run build   # production build
 ```
 
+Building now generates a service worker via `vite-plugin-pwa`. Make sure to run
+`npm install` after pulling updates so the plugin is available.
+
 During development the Vite dev server serves the app on `http://localhost:5173`
 and API requests are sent to the backend running on `http://localhost:8080`.
 When deploying, the Dockerfile builds the frontend and copies the compiled
