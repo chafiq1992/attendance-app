@@ -37,6 +37,11 @@ body {
   transition: all var(--motion-duration) var(--motion-curve);
 }
 
+.btn-highlight {
+  border: 2px solid #facc15;
+  box-shadow: 0 0 10px #facc15;
+}
+
 .btn-emerald {
   background-color: var(--color-emerald);
 }
