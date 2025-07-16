@@ -12,6 +12,7 @@ export default function AttendancePad() {
   const [bounce, setBounce] = useState('')
   const [use24h, setUse24h] = useState(true)
   const [mood, setMood] = useState('')
+  const [highlight, setHighlight] = useState('')
   const toast = useToast()
 
   useEffect(() => {
@@ -33,6 +34,22 @@ export default function AttendancePad() {
 
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const computeHighlight = () => {
+      const now = new Date()
+      const minutes = now.getHours() * 60 + now.getMinutes()
+      if (minutes < 10 * 60) return 'clockin'
+      if (minutes >= 12 * 60 && minutes <= 13 * 60 + 30) return 'startbreak'
+      if (minutes >= 12 * 60 + 31 && minutes <= 15 * 60) return 'endbreak'
+      if (minutes > 19 * 60) return 'startextra'
+      if (minutes >= 15 * 60 && minutes <= 19 * 60) return 'clockout'
+      return ''
+    }
+    setHighlight(computeHighlight())
+    const id = setInterval(() => setHighlight(computeHighlight()), 60000)
     return () => clearInterval(id)
   }, [])
 
@@ -154,7 +171,7 @@ export default function AttendancePad() {
               key={a.kind}
               disabled={disabled}
               onClick={() => send(a.kind)}
-              className={`btn btn-${a.color} ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
+              className={`btn btn-${a.color} ${disabled ? 'opacity-50 pointer-events-none' : ''} ${highlight === a.kind ? 'btn-highlight' : ''}`}
             >
               <span className={bounce === a.kind ? 'animate-bounce-short text-2xl' : 'text-2xl'}>{a.icon}</span>
               <span>{a.label}</span>
