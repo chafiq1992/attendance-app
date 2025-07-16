@@ -11,6 +11,15 @@ const titles = {
 
 export default function Header() {
   const path = window.location.pathname
+  const params = new URLSearchParams(window.location.search)
+  const employee = params.get('employee') || params.get('driver') || ''
+  const initials = employee
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
   let title = 'Attendance'
   for (const p of Object.keys(titles)) {
     if (path.startsWith(p)) {
@@ -21,7 +30,7 @@ export default function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-20 bg-gradient-to-r from-[#004aad] to-[#0e5dad] shadow flex items-center justify-between px-4 h-[60px] md:h-[72px] text-white">
       <a href="/" className="flex items-center gap-2">
-        <img src="/favicon.ico" alt="Logo" className="w-8 h-8 rounded" />
+        <img src="/static/favicon.ico" alt="Logo" className="w-8 h-8 rounded" />
       </a>
       <motion.h1
         key={title}
@@ -38,7 +47,7 @@ export default function Header() {
           <span>🔔</span>
           <span className="absolute -top-1 -right-2 bg-red-500 text-xs rounded-full px-1">1</span>
         </div>
-        <div className="w-8 h-8 bg-white text-sapphire rounded-full flex items-center justify-center font-semibold text-sm">JD</div>
+        <div className="w-8 h-8 bg-white text-sapphire rounded-full flex items-center justify-center font-semibold text-sm">{initials}</div>
       </div>
     </header>
   )
