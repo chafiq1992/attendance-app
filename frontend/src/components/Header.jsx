@@ -29,8 +29,8 @@ export default function Header() {
   }
   return (
     <header className="fixed top-0 left-0 right-0 z-20 bg-gradient-to-r from-[#004aad] to-[#0e5dad] shadow flex items-center justify-between px-4 h-[60px] md:h-[72px] text-white">
-      <a href="/" className="flex items-center gap-2">
-        <img src="/static/favicon.ico" alt="Logo" className="w-8 h-8 rounded" />
+      <a href="/" className="flex items-center gap-2 bg-white rounded p-1">
+        <img src="/static/favicon.ico" alt="Logo" className="h-10 w-auto object-contain" />
       </a>
       <motion.h1
         key={title}
