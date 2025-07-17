@@ -122,13 +122,13 @@ async def test_summary_extra_and_penalty(client):
 
     # Day 2
     assert data["hours_per_day"]["2"] == 7.5
-    assert data["extra_per_day"]["2"] == 0.0
-    assert data["penalty_per_day"]["2"] == 0.75
-    assert data["net_per_day"]["2"] == -0.75
+    assert data["extra_per_day"]["2"] == 3.5
+    assert data["penalty_per_day"]["2"] == 0.0
+    assert data["net_per_day"]["2"] == 3.5
 
-    assert data["total_extra"] == 0.25
-    assert data["total_penalty"] == 0.75
-    assert data["net_time"] == -0.5
+    assert data["total_extra"] == 3.75
+    assert data["total_penalty"] == 0.0
+    assert data["net_time"] == 3.75
 
 
 @pytest.mark.asyncio

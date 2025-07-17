@@ -154,22 +154,25 @@ async def delete_event(event_id: int, session: AsyncSession = Depends(get_sessio
 
 def _compute_metrics_from_seconds(seconds: float) -> Dict[str, float]:
     """Return worked, extra, penalty and net hours for the given seconds."""
-    required = WORK_DAY_HOURS * 3600
-    grace = GRACE_PERIOD_MIN * 60
-    penalty_bonus = UNDER_TIME_PENALTY_MIN * 60
 
+    worked_hours = seconds / 3600
     extra_seconds = 0.0
-    penalty_seconds = 0.0
-    if seconds >= required:
-        extra_seconds = max(0.0, seconds - required - grace)
-    else:
-        penalty_seconds = required - seconds + penalty_bonus
+
+    if seconds >= 60:
+        if seconds >= 8 * 3600:
+            if seconds > 8 * 3600 + 15 * 60:
+                extra_seconds = seconds - (8 * 3600 + 15 * 60)
+        elif seconds > 4 * 3600 + 15 * 60:
+            extra_seconds = seconds - 4 * 3600
+
+    block = 15 * 60
+    extra_seconds = round(extra_seconds / block) * block
 
     return {
-        "worked_hours": seconds / 3600,
+        "worked_hours": worked_hours,
         "extra_hours": extra_seconds / 3600,
-        "penalty_hours": penalty_seconds / 3600,
-        "net_hours": (extra_seconds - penalty_seconds) / 3600,
+        "penalty_hours": 0.0,
+        "net_hours": extra_seconds / 3600,
     }
 
 

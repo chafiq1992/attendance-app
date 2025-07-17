@@ -15,6 +15,7 @@ import EditRecords from './EditRecords'
 import PayoutSummary from './PayoutSummary'
 import SettingsLogs from './SettingsLogs'
 import AdminHeader from './components/AdminHeader'
+import { formatMs } from './utils'
 
 Chart.register(BarElement, CategoryScale, LinearScale, ArcElement, Tooltip, Legend)
 
@@ -32,7 +33,6 @@ function computeMetrics(events) {
   let status = 'Offline'
   let inTime = null
   let breakStart = null
-  let extraStart = null
   let workedMs = 0
   let extraMs = 0
 
@@ -64,14 +64,9 @@ function computeMetrics(events) {
         status = 'Clocked In'
         break
       case 'startextra':
-        if (!extraStart) extraStart = t
         status = 'Extra Hours'
         break
       case 'endextra':
-        if (extraStart) {
-          extraMs += t - extraStart
-          extraStart = null
-        }
         status = 'Clocked In'
         break
     }
@@ -80,9 +75,20 @@ function computeMetrics(events) {
   const now = Date.now()
   if (inTime) workedMs += now - inTime
   if (breakStart) workedMs -= now - breakStart
-  if (extraStart) extraMs += now - extraStart
 
   const online = status !== 'Clocked Out'
+
+  if (workedMs >= 8 * 3600000) {
+    if (workedMs > 8 * 3600000 + 15 * 60 * 1000) {
+      extraMs = workedMs - (8 * 3600000 + 15 * 60 * 1000)
+    }
+  } else if (workedMs >= 60 * 1000) {
+    if (workedMs > 4 * 3600000 + 15 * 60 * 1000) {
+      extraMs = workedMs - 4 * 3600000
+    }
+  }
+  extraMs = Math.round(extraMs / (15 * 60 * 1000)) * (15 * 60 * 1000)
+
   return { status, workedMs, extraMs, events: sorted, online }
 }
 
@@ -115,7 +121,7 @@ function OverviewTab() {
   const stats = useMemo(() => {
     let total = 0
     let working = 0
-    let hours = 0
+    let hoursMs = 0
     let late = 0
     const barLabels = []
     const barTimes = []
@@ -123,7 +129,7 @@ function OverviewTab() {
       total += 1
       const m = computeMetrics(emp.events)
       if (m.online) working += 1
-      hours += m.workedMs / 3600000
+      hoursMs += m.workedMs
       const firstIn = emp.events.find(
         (e) => e.kind === 'clockin' || e.kind === 'in'
       )
@@ -138,7 +144,7 @@ function OverviewTab() {
         late += 1
       }
     })
-    return { total, working, hours, late, barLabels, barTimes }
+    return { total, working, hoursMs, late, barLabels, barTimes }
   }, [data])
 
   const barData = {
@@ -174,7 +180,7 @@ function OverviewTab() {
         <div className="card text-center">
           <div className="text-sm">Total Hours Today</div>
           <div className="text-2xl font-bold">
-            {stats.hours.toFixed(2)}h
+            {formatMs(stats.hoursMs)}
           </div>
         </div>
         <div className="card text-center">
@@ -204,8 +210,8 @@ function OverviewTab() {
               />
               <div className="flex-1">
                 <div className="font-semibold">{emp.id}</div>
-                <div className="text-sm">Hours: {(m.workedMs/3600000).toFixed(2)}h</div>
-                <div className="text-sm">Extra: {(m.extraMs/3600000).toFixed(2)}h</div>
+                <div className="text-sm">Hours: {formatMs(m.workedMs)}</div>
+                <div className="text-sm">Extra: {formatMs(m.extraMs)}</div>
               </div>
               <div className="flex flex-col items-end space-y-2">
                 <span className={`badge ${m.online ? 'bg-emerald/20 text-emerald' : 'bg-coral/20 text-coral'}`}>{m.status}</span>
@@ -257,22 +263,21 @@ function DirectoryTab() {
         })
         const arr = Object.entries(byEmp).map(([id, ev]) => {
           const days = new Set(ev.map(e => e.timestamp.slice(0,10)))
-          const extra = ev.filter(e => e.kind === 'startextra' || e.kind === 'endextra')
+          const byDay = {}
+          ev.forEach(e => {
+            const day = e.timestamp.slice(0,10)
+            byDay[day] = byDay[day] || []
+            byDay[day].push(e)
+          })
           let extraMs = 0
-          let start = null
-          extra.forEach(e => {
-            const t = new Date(e.timestamp)
-            if (e.kind === 'startextra') start = t
-            if (e.kind === 'endextra' && start) {
-              extraMs += t - start
-              start = null
-            }
+          Object.values(byDay).forEach(dayEv => {
+            extraMs += computeMetrics(dayEv).extraMs
           })
           return {
             id,
             events: ev,
             workedDays: days.size,
-            extraHours: (extraMs/3600000).toFixed(2)
+            extraMs
           }
         })
         setEmployees(arr)
@@ -314,7 +319,7 @@ function DirectoryTab() {
                   <span className={`badge ${status==='Clocked Out' ? 'bg-coral/20 text-coral' : 'bg-emerald/20 text-emerald'}`}>{status}</span>
                 </td>
                 <td className="border px-2">{emp.workedDays}</td>
-                <td className="border px-2">{emp.extraHours}</td>
+                <td className="border px-2">{formatMs(emp.extraMs)}</td>
                 <td className="border px-2 cursor-pointer" onClick={() => setExpanded(prev => ({ ...prev, [emp.id]: !prev[emp.id] }))}>
                   {expanded[emp.id] ? '▲' : '▼'}
                 </td>

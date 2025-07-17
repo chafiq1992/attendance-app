@@ -2,6 +2,7 @@ import os
 import importlib
 import asyncio
 import pytest
+import pytest_asyncio
 from testcontainers.postgres import PostgresContainer
 from httpx import AsyncClient
 
@@ -11,7 +12,7 @@ def event_loop():
     yield loop
     loop.close()
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def client():
     with PostgresContainer("postgres:15") as postgres:
         url = postgres.get_connection_url()
