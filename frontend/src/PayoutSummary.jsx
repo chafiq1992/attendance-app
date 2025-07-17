@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import { formatHoursHM } from './utils'
 
 export default function PayoutSummary() {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7))
@@ -183,7 +184,7 @@ export default function PayoutSummary() {
                 </div>
                 <div className="flex justify-between">
                   <span>Worked Hours</span>
-                  <span className="font-semibold">{d.hours.toFixed(2)}</span>
+                  <span className="font-semibold">{formatHoursHM(d.hours)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Base Pay</span>
