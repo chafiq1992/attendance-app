@@ -129,3 +129,24 @@ async def test_summary_extra_and_penalty(client):
     assert data["total_extra"] == 0.25
     assert data["total_penalty"] == 0.75
     assert data["net_time"] == -0.5
+
+
+@pytest.mark.asyncio
+async def test_summary_cross_midnight(client):
+    start = datetime(2024, 1, 1, 19, tzinfo=timezone.utc)
+    end = datetime(2024, 1, 2, 3, tzinfo=timezone.utc)
+    await client.post(
+        "/events",
+        params={"employee_id": "dave", "kind": "clockin", "timestamp": start.isoformat()},
+    )
+    await client.post(
+        "/events",
+        params={"employee_id": "dave", "kind": "clockout", "timestamp": end.isoformat()},
+    )
+
+    resp = await client.get("/summary", params={"employee_id": "dave", "month": "2024-01"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["hours_per_day"]["1"] == 5.0
+    assert data["hours_per_day"]["2"] == 3.0
+    assert data["total_hours"] == 8.0
