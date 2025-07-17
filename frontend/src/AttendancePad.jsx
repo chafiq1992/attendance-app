@@ -53,9 +53,25 @@ export default function AttendancePad() {
     return () => clearInterval(id)
   }, [])
 
+  const isExtraOpen = () => {
+    const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    let open = false
+    sorted.forEach((e) => {
+      if (e.kind === 'startextra') open = true
+      if (e.kind === 'endextra') open = false
+    })
+    return open
+  }
+
   const send = (action) => {
     if (!employee) return
-    if (events.some((e) => e.kind === action)) {
+    const open = isExtraOpen()
+    const taken = events.some((e) => e.kind === action)
+    if (
+      (action === 'startextra' && open) ||
+      (action === 'endextra' && !open) ||
+      (action !== 'startextra' && action !== 'endextra' && taken)
+    ) {
       toast('Already done! \u{1F44C}')
       setBounce(action)
       setTimeout(() => setBounce(''), 250)
@@ -146,6 +162,24 @@ export default function AttendancePad() {
     return `${h}h ${m}m`
   }
 
+  const extraPairs = (() => {
+    const pairs = []
+    let open = null
+    timeline.forEach((e) => {
+      const t = new Date(e.timestamp)
+      if (e.kind === 'startextra') open = t
+      if (e.kind === 'endextra' && open) {
+        pairs.push([open, t])
+        open = null
+      }
+    })
+    if (open) pairs.push([open, null])
+    return pairs
+  })()
+
+  const fmtTime = (t) =>
+    t.toLocaleTimeString([], use24h ? { hour: '2-digit', minute: '2-digit', hour12: false } : { hour: '2-digit', minute: '2-digit' })
+
   return (
     <motion.div
       initial={shouldReduce ? false : { opacity: 0, y: 20 }}
@@ -165,7 +199,9 @@ export default function AttendancePad() {
       </div>
       <div className="grid grid-cols-2 gap-4 w-full">
         {actions.map((a) => {
-          const disabled = events.some((e) => e.kind === a.kind)
+          let disabled = events.some((e) => e.kind === a.kind)
+          if (a.kind === 'startextra') disabled = isExtraOpen()
+          if (a.kind === 'endextra') disabled = !isExtraOpen()
           return (
             <RippleButton
               key={a.kind}
@@ -189,6 +225,20 @@ export default function AttendancePad() {
         <div>⚠️ Penalty</div>
         <div className="font-semibold">{fmt(summary.penaltyMs)}</div>
       </div>
+      <details className="card w-full" data-testid="extra-history">
+        <summary className="cursor-pointer font-semibold">Extra Sessions</summary>
+        <div className="mt-2 space-y-1 pl-2">
+          {extraPairs.length === 0 && <div>No extra sessions</div>}
+          {extraPairs.map(([s, e], idx) => (
+            <div key={idx} className="flex justify-between">
+              <span>{fmtTime(s)}</span>
+              <span>
+                {e ? `${fmtTime(e)} \u2705` : '...'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </details>
       <div className="card w-full">
         <h3 className="font-semibold mb-2">Today's Timeline</h3>
         <div className="space-y-2">
