@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Tuple
 import calendar
 
-from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi import FastAPI, HTTPException, Depends, Query, Body
 from pydantic import BaseModel
 from sqlalchemy import select, update, delete, insert, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,6 +51,12 @@ async def get_session() -> AsyncSession:
         yield session
 
 
+class EventPayload(BaseModel):
+    employee_id: str
+    kind: str
+    timestamp: datetime
+
+
 class EventUpdate(BaseModel):
     employee_id: Optional[str] | None = None
     kind: Optional[str] | None = None
@@ -58,11 +64,18 @@ class EventUpdate(BaseModel):
 
 @app.post("/events", response_model=dict)
 async def create_event(
-    employee_id: str,
-    kind: str,
-    timestamp: datetime,
+    employee_id: Optional[str] = Query(None),
+    kind: Optional[str] = Query(None),
+    timestamp: Optional[datetime] = Query(None),
+    payload: EventPayload | None = Body(None),
     session: AsyncSession = Depends(get_session),
 ):
+    if payload is not None:
+        employee_id = payload.employee_id
+        kind = payload.kind
+        timestamp = payload.timestamp
+    if employee_id is None or kind is None or timestamp is None:
+        raise HTTPException(status_code=422, detail="employee_id, kind and timestamp required")
     event = Event(
         employee_id=employee_id,
         kind=kind,
