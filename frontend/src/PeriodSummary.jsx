@@ -124,7 +124,7 @@ export default function PeriodSummary() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                       <div className="whitespace-nowrap">Worked Days</div>
-                      <div className="text-right font-semibold whitespace-nowrap">{p.workedDays}</div>
+                      <div className="text-right font-semibold whitespace-nowrap">{p.workedDays.toFixed(2)}</div>
                       <div className="whitespace-nowrap">Extra Hours</div>
                       <div className="text-right font-semibold whitespace-nowrap">{p.extraHours}</div>
                       <div className="whitespace-nowrap">Payout (DH)</div>
@@ -178,7 +178,7 @@ export default function PeriodSummary() {
                       </div>
                     </div>
                     <div className="bg-white/20 text-center font-semibold py-2 rounded-xl">
-                      Worked Days: {m.periods.reduce((s, p2) => s + p2.workedDays, 0)} | Extra Hours: {m.periods.reduce((s, p2) => s + (p2.extraHours || 0), 0)} | Payout: {m.periods.reduce((s, p2) => s + p2.payout, 0)} | Advances: {m.periods.reduce((s, p2) => s + p2.advance, 0)} | Balance: {m.periods.reduce((s, p2) => s + p2.balance, 0)}
+                      Worked Days: {m.periods.reduce((s, p2) => s + p2.workedDays, 0).toFixed(2)} | Extra Hours: {m.periods.reduce((s, p2) => s + (p2.extraHours || 0), 0).toFixed(2)} | Payout: {m.periods.reduce((s, p2) => s + p2.payout, 0)} | Advances: {m.periods.reduce((s, p2) => s + p2.advance, 0)} | Balance: {m.periods.reduce((s, p2) => s + p2.balance, 0)}
                     </div>
                   </div>
                 )
@@ -208,10 +208,10 @@ function calcPeriods(events, monthStr, extras = []) {
   })
   Object.entries(byDay).forEach(([d, info]) => {
     const idx = d <= 15 ? 0 : 1
-    periods[idx].workedDays += 1
     if (info.in && info.out) {
       const hrs = (info.out - info.in) / 3600000
       periods[idx].hours += hrs
+      periods[idx].workedDays += hrs / 8
       if (hrs > 8) periods[idx].extraHours += hrs - 8
     }
   })
@@ -236,6 +236,7 @@ function calcPeriods(events, monthStr, extras = []) {
 
   periods.forEach((p) => {
     p.hours = Number(p.hours.toFixed(2))
+    p.workedDays = Number(p.workedDays.toFixed(2))
     p.extraHours = Number(p.extraHours.toFixed(2))
     p.balance = p.payout - p.advance
   })

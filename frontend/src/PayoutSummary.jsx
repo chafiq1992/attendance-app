@@ -35,11 +35,14 @@ export default function PayoutSummary() {
 
             let days = 0
             let hours = 0
+            let extra = 0
             if (summaryRes) {
               hours = summaryRes.total_hours || 0
-              days = Object.values(summaryRes.hours_per_day || {}).filter(
-                h => h > 0
-              ).length
+              extra = summaryRes.total_extra || 0
+              days = Object.values(summaryRes.hours_per_day || {}).reduce(
+                (s, h) => s + h / 8,
+                0
+              )
             }
 
             let advTotal = 0
@@ -69,6 +72,7 @@ export default function PayoutSummary() {
                 discount: 0,
                 days,
                 hours,
+                extra,
                 advTotal,
                 advances,
                 ordersTotal,
@@ -177,14 +181,18 @@ export default function PayoutSummary() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="grid grid-cols-4 gap-2 text-sm">
                 <div className="flex justify-between">
                   <span>Worked Days</span>
-                  <span className="font-semibold">{d.days}</span>
+                  <span className="font-semibold">{d.days.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Worked Hours</span>
                   <span className="font-semibold">{formatHoursHM(d.hours)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Extra Hours</span>
+                  <span className="font-semibold">{formatHoursHM(d.extra)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Base Pay</span>
