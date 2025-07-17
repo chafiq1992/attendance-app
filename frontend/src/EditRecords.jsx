@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useToast } from './components/Toast'
+import { formatHoursHM } from './utils'
 
 const kinds = [
   ['clockin', 'Clock In'],
@@ -63,7 +64,13 @@ export default function EditRecords() {
   }, [employee, monthStr])
 
   const startEdit = (date, kind, row) => {
-    const val = row[kind]?.timestamp?.slice(11, 16) || ''
+    const val = row[kind]
+      ? new Date(row[kind].timestamp).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })
+      : ''
     setEditing({ date, kind, value: val })
   }
 
@@ -207,7 +214,12 @@ export default function EditRecords() {
                         </button>
                       </div>
                     ) : (
-                      row[k]?.timestamp?.slice(11, 16) || '—'
+                      row[k]
+                        ? new Date(row[k].timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : '—'
                     )}
                   </td>
                 ))}
@@ -216,7 +228,7 @@ export default function EditRecords() {
           </tbody>
         </table>
         <div className="font-semibold text-center">
-          Worked Days {workedDays} • Worked Hours {workedHours.toFixed(2)} • Extra Hours {extraHours.toFixed(2)}
+          Worked Days {workedDays} • Worked Hours {formatHoursHM(workedHours)} • Extra Hours {formatHoursHM(extraHours)}
         </div>
       </div>
     </div>

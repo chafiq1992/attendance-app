@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import TimelineEntry from './components/TimelineEntry'
+import { formatHoursHM } from './utils'
 
 export default function MonthlySheets() {
   const [employee, setEmployee] = useState('')
@@ -78,7 +79,7 @@ export default function MonthlySheets() {
 
 function Table({ rows }) {
   const daysWorked = rows.filter(r => r.in || r.out).length
-  const extraHours = rows.reduce((s, r) => s + (parseFloat(r.extraTotal) || 0), 0)
+  const extraHours = rows.reduce((s, r) => s + (r.extraTotal || 0), 0)
   return (
     <div className="overflow-auto">
       <table className="w-full text-xs sm:text-sm table-fixed">
@@ -111,13 +112,13 @@ function Table({ rows }) {
               <td className="p-1 text-center break-words">{r.breakEnd}</td>
               <td className="p-1 text-center break-words">{r.extraStart}</td>
               <td className="p-1 text-center break-words">{r.extraEnd}</td>
-              <td className="p-1 text-center break-words">{r.extraTotal}</td>
+              <td className="p-1 text-center break-words">{r.extraTotal ? formatHoursHM(r.extraTotal) : ''}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <div className="bg-white/20 text-center font-semibold py-1 sticky bottom-0">
-        ✅ Days Worked: {daysWorked} | 🕒 Extra Hours: {extraHours.toFixed(1)}h
+        ✅ Days Worked: {daysWorked} | 🕒 Extra Hours: {formatHoursHM(extraHours)}
       </div>
     </div>
   )
@@ -125,7 +126,7 @@ function Table({ rows }) {
 
 function DayCards({ rows }) {
   const daysWorked = rows.filter(r => r.in || r.out).length
-  const extraHours = rows.reduce((s, r) => s + (parseFloat(r.extraTotal) || 0), 0)
+  const extraHours = rows.reduce((s, r) => s + (r.extraTotal || 0), 0)
   return (
     <div>
       <div className="flex overflow-x-auto space-x-2 pb-2">
@@ -144,13 +145,13 @@ function DayCards({ rows }) {
               {evs.map((ev, idx) => (
                 <TimelineEntry key={idx} index={idx} icon={ev.icon} label={ev.label} time={ev.time} />
               ))}
-              <div>➕ Extra Total: {r.extraTotal ? `${r.extraTotal} h` : '– h'}</div>
+              <div>➕ Extra Total: {r.extraTotal ? formatHoursHM(r.extraTotal) : '– h'}</div>
             </div>
           )
         })}
       </div>
       <div className="bg-white/20 text-center font-semibold py-1 rounded-b-xl">
-        ✅ Days Worked: {daysWorked} | 🕒 Extra Hours: {extraHours.toFixed(1)}h
+        ✅ Days Worked: {daysWorked} | 🕒 Extra Hours: {formatHoursHM(extraHours)}
       </div>
     </div>
   )
@@ -203,7 +204,7 @@ function toRows(events, monthStr) {
         lastExtra = null
       }
     })
-    if (extraTotal) row.extraTotal = extraTotal.toFixed(2)
+    if (extraTotal) row.extraTotal = extraTotal
     rows.push(row)
   }
   return rows

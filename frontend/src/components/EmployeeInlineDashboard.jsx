@@ -3,7 +3,7 @@ import axios from 'axios'
 import { Line, Doughnut } from 'react-chartjs-2'
 import { Chart, ArcElement, LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend } from 'chart.js'
 import { Progress } from './ProgressBar'
-import { formatHours } from '../utils'
+import { formatHoursHM } from '../utils'
 
 Chart.register(ArcElement, LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend)
 
@@ -41,7 +41,7 @@ export default function EmployeeInlineDashboard({ employee }) {
         <Doughnut data={donutData} />
         <Line data={lineData} />
       </div>
-      <Progress value={progress} label={`Hours: ${formatHours(data.total_hours)}/${goal}`} />
+      <Progress value={progress} label={`Hours: ${formatHoursHM(data.total_hours)}/${goal}`} />
       <table className="min-w-full text-sm table-hover">
         <thead>
           <tr>
@@ -53,7 +53,7 @@ export default function EmployeeInlineDashboard({ employee }) {
           {days.map(d => (
             <tr key={d}>
               <td className="border px-2">{d}</td>
-              <td className="border px-2">{formatHours(data.hours_per_day[d])}</td>
+              <td className="border px-2">{formatHoursHM(data.hours_per_day[d])}</td>
             </tr>
           ))}
         </tbody>

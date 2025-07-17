@@ -10,3 +10,11 @@ export function formatHours(hours) {
 export function formatMs(ms) {
   return formatHours(ms / 3600000);
 }
+
+export function formatHoursHM(hours) {
+  const totalMinutes = Math.round(hours * 60)
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  const pad = (n) => n.toString().padStart(2, '0')
+  return `${pad(h)}:${pad(m)}`
+}
