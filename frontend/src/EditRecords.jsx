@@ -1,86 +1,132 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import { useToast } from './components/Toast'
+
+const kinds = [
+  ['clockin', 'Clock In'],
+  ['clockout', 'Clock Out'],
+  ['startbreak', 'Break Start'],
+  ['endbreak', 'Break End'],
+  ['startextra', 'Extra Start'],
+  ['endextra', 'Extra End'],
+]
 
 export default function EditRecords() {
+  const toast = useToast()
   const [employees, setEmployees] = useState([])
   const [employee, setEmployee] = useState('')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [month, setMonth] = useState(() => new Date())
   const [entries, setEntries] = useState({})
+  const [summary, setSummary] = useState(null)
   const [showMissing, setShowMissing] = useState(false)
+  const [editing, setEditing] = useState(null) // {date, kind, value}
 
-  useEffect(() => {
-    const m = new Date().toISOString().slice(0, 7)
-    axios
-      .get('/api/events', { params: { month: m } })
-      .then(res => {
-        const ids = Array.from(new Set(res.data.map(e => e.employee_id)))
-        setEmployees(ids)
-      })
-      .catch(() => setEmployees([]))
-  }, [])
+  const monthStr = month.toISOString().slice(0, 7)
 
-  useEffect(() => {
-    if (!employee) return
-    const m = date.slice(0, 7)
-    axios
-      .get('/api/events', { params: { employee_id: employee, month: m } })
-      .then((res) => {
-        const rows = {}
-        res.data.forEach((e) => {
-          const d = e.timestamp.slice(0, 10)
-          rows[d] = rows[d] || {}
-          rows[d][e.kind] = e
-        })
-        setEntries(rows)
-      })
-      .catch(() => setEntries({}))
-  }, [employee, date])
-
-  const handleChange = async (kind) => {
-    const ts = prompt('ISO timestamp')
-    if (!ts) return
-    const row = entries[date] || {}
-    if (row[kind]) {
-      await axios.patch(`/api/events/${row[kind].id}`, { timestamp: ts })
-    } else if (employee) {
-      await axios.post('/api/events', {
-        employee_id: employee,
-        kind,
-        timestamp: ts,
-      })
+  const fetchEmployees = async () => {
+    try {
+      const res = await axios.get('/api/events', { params: { month: monthStr } })
+      const ids = Array.from(new Set(res.data.map((e) => e.employee_id)))
+      setEmployees(ids)
+    } catch {
+      setEmployees([])
     }
   }
 
-  const kinds = [
-    ['clockin', 'Clock In'],
-    ['clockout', 'Clock Out'],
-    ['startbreak', 'Break Start'],
-    ['endbreak', 'Break End'],
-    ['startextra', 'Extra Start'],
-    ['endextra', 'Extra End'],
-  ]
+  const fetchData = async () => {
+    if (!employee) return
+    try {
+      const [evRes, sumRes] = await Promise.all([
+        axios.get('/api/events', { params: { employee_id: employee, month: monthStr } }),
+        axios.get('/api/summary', { params: { employee_id: employee, month: monthStr } }),
+      ])
+      const rows = {}
+      evRes.data.forEach((e) => {
+        const d = e.timestamp.slice(0, 10)
+        rows[d] = rows[d] || {}
+        rows[d][e.kind] = e
+      })
+      setEntries(rows)
+      setSummary(sumRes.data)
+    } catch {
+      setEntries({})
+      setSummary(null)
+    }
+  }
 
-  const row = entries[date] || {}
-  const missing = kinds.some(([k]) => !row[k])
+  useEffect(() => {
+    fetchEmployees()
+  }, [])
 
-  if (showMissing && !missing) return null
+  useEffect(() => {
+    fetchData()
+  }, [employee, monthStr])
+
+  const startEdit = (date, kind, row) => {
+    const val = row[kind]?.timestamp?.slice(11, 16) || ''
+    setEditing({ date, kind, value: val })
+  }
+
+  const saveEdit = async () => {
+    if (!editing || !editing.value) {
+      setEditing(null)
+      return
+    }
+    const { date, kind, value } = editing
+    const ts = new Date(`${date}T${value}`).toISOString()
+    const row = entries[date] || {}
+    try {
+      if (row[kind]) {
+        await axios.patch(`/api/events/${row[kind].id}`, { timestamp: ts })
+        row[kind].timestamp = ts
+      } else {
+        const res = await axios.post('/api/events', {
+          employee_id: employee,
+          kind,
+          timestamp: ts,
+        })
+        row[kind] = { id: res.data.id, employee_id: employee, kind, timestamp: ts }
+      }
+      setEntries((prev) => ({ ...prev, [date]: { ...row } }))
+      toast('Saved ✓')
+      fetchData()
+    } catch {
+      toast('Error', 'error')
+    }
+    setEditing(null)
+  }
+
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+  const tableRows = []
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${monthStr}-${String(d).padStart(2, '0')}`
+    const row = entries[dateStr] || {}
+    const missing = kinds.some(([k]) => !row[k])
+    if (showMissing && !missing) continue
+    const bad =
+      row.clockin &&
+      row.clockout &&
+      new Date(row.clockout.timestamp) < new Date(row.clockin.timestamp)
+    tableRows.push({ date: dateStr, row, missing, bad })
+  }
+
+  const workedDays = summary
+    ? Object.values(summary.hours_per_day).filter((h) => h > 0).length
+    : 0
+  const workedHours = summary ? summary.total_hours : 0
+  const extraHours = summary ? summary.total_extra : 0
+
+  const changeMonth = (delta) => {
+    setMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
+  }
 
   return (
-    <div className="card space-y-4 relative">
-      <button
-        className="absolute top-2 right-2 px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
-        onClick={() => window.location.reload()}
-      >
-        Restore Original
-      </button>
+    <div className="space-y-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-center">
         <select
           className="rounded-lg p-2 border border-gray-300 w-full shadow-sm"
           value={employee}
-          onChange={(e) => {
-            setEmployee(e.target.value)
-            setDate(new Date().toISOString().slice(0, 10))
-          }}
+          onChange={(e) => setEmployee(e.target.value)}
         >
           <option disabled value="">
             Select Employee
@@ -89,14 +135,16 @@ export default function EditRecords() {
             <option key={emp}>{emp}</option>
           ))}
         </select>
-        <div className="relative">
-          <input
-            type="date"
-            className="rounded-lg p-2 pr-8 border border-gray-300 shadow-sm w-full"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">📅</span>
+        <div className="flex items-center gap-2">
+          <button className="px-2 py-1 border rounded" onClick={() => changeMonth(-1)}>
+            ‹
+          </button>
+          <div className="font-semibold">
+            {month.toLocaleString('default', { month: 'long', year: 'numeric' })}
+          </div>
+          <button className="px-2 py-1 border rounded" onClick={() => changeMonth(1)}>
+            ›
+          </button>
         </div>
         <label className="flex items-center space-x-2 text-sm">
           <input
@@ -105,35 +153,72 @@ export default function EditRecords() {
             checked={showMissing}
             onChange={(e) => setShowMissing(e.target.checked)}
           />
-          <span>Show only days with missing data</span>
+          <span>Missing only</span>
         </label>
       </div>
-      <table className="min-w-full text-sm table-hover border border-gray-200 rounded-lg overflow-hidden">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="border px-2">Entry</th>
-            <th className="border px-2">Time</th>
-            <th className="border px-2">Edit</th>
-          </tr>
-        </thead>
-        <tbody>
-          {kinds.map(([k, label]) => (
-            <tr key={k} className="text-center">
-              <td className="border px-2">{label}</td>
-              <td className="border px-2">{row[k]?.timestamp?.slice(11, 16) || '--'}</td>
-              <td className="border px-2">
-                <button
-                  className="text-sapphire hover:underline flex items-center gap-1"
-                  onClick={() => handleChange(k)}
-                >
-                  <span>✏️</span>
-                  <span>Edit</span>
-                </button>
-              </td>
+
+      <div className="card p-4 space-y-2">
+        <div className="flex justify-end">
+          <button
+            className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
+            onClick={fetchData}
+          >
+            Restore Original
+          </button>
+        </div>
+        <table className="min-w-full text-xs sm:text-sm table-fixed">
+          <thead className="bg-sapphire text-white">
+            <tr>
+              <th className="p-1">Day</th>
+              {kinds.map(([k, label]) => (
+                <th key={k} className="p-1">
+                  {label}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {tableRows.map(({ date, row, missing, bad }, idx) => (
+              <tr
+                key={date}
+                className={`${idx % 2 ? 'bg-gray-50' : ''} ${missing ? 'bg-yellow-100' : ''} ${bad ? 'border-2 border-red-500' : 'border-b'} text-center`}
+              >
+                <td className="p-1">{date.slice(-2)}</td>
+                {kinds.map(([k]) => (
+                  <td
+                    key={k}
+                    className="p-1 cursor-pointer"
+                    onClick={() => startEdit(date, k, row)}
+                  >
+                    {editing && editing.date === date && editing.kind === k ? (
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="time"
+                          value={editing.value}
+                          onChange={(e) => setEditing((prev) => ({ ...prev, value: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveEdit()
+                          }}
+                          className="border px-1 rounded"
+                          autoFocus
+                        />
+                        <button className="ml-1 text-sapphire" onClick={saveEdit}>
+                          ✓
+                        </button>
+                      </div>
+                    ) : (
+                      row[k]?.timestamp?.slice(11, 16) || '—'
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="font-semibold text-center">
+          Worked Days {workedDays} • Worked Hours {workedHours.toFixed(2)} • Extra Hours {extraHours.toFixed(2)}
+        </div>
+      </div>
     </div>
   )
 }
