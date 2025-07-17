@@ -1,6 +1,6 @@
 from __future__ import annotations
-from datetime import datetime, timezone
-from typing import List, Optional, Dict
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional, Dict, Tuple
 import calendar
 
 from fastapi import FastAPI, HTTPException, Depends, Query
@@ -152,48 +152,52 @@ async def delete_event(event_id: int, session: AsyncSession = Depends(get_sessio
     return {"ok": True}
 
 
-def _compute_day_metrics(events: List[Event]) -> Dict[str, float]:
-    """Return worked, extra, penalty and net hours for a list of events."""
-    events.sort(key=lambda e: e.timestamp)
-    clock_in: datetime | None = None
-    clock_out: datetime | None = None
-    break_start: datetime | None = None
-    break_seconds = 0.0
-
-    for ev in events:
-        k = ev.kind
-        if k in {"clockin", "in"} and clock_in is None:
-            clock_in = ev.timestamp
-        elif k in {"clockout", "out"}:
-            clock_out = ev.timestamp
-        elif k == "startbreak" and break_start is None:
-            break_start = ev.timestamp
-        elif k == "endbreak" and break_start is not None:
-            break_seconds += (ev.timestamp - break_start).total_seconds()
-            break_start = None
-
-    worked_seconds = 0.0
-    if clock_in and clock_out and clock_out > clock_in:
-        worked_seconds = (clock_out - clock_in).total_seconds() - break_seconds
-        worked_seconds = max(0.0, worked_seconds)
-
+def _compute_metrics_from_seconds(seconds: float) -> Dict[str, float]:
+    """Return worked, extra, penalty and net hours for the given seconds."""
     required = WORK_DAY_HOURS * 3600
     grace = GRACE_PERIOD_MIN * 60
     penalty_bonus = UNDER_TIME_PENALTY_MIN * 60
 
     extra_seconds = 0.0
     penalty_seconds = 0.0
-    if worked_seconds >= required:
-        extra_seconds = max(0.0, worked_seconds - required - grace)
+    if seconds >= required:
+        extra_seconds = max(0.0, seconds - required - grace)
     else:
-        penalty_seconds = required - worked_seconds + penalty_bonus
+        penalty_seconds = required - seconds + penalty_bonus
 
     return {
-        "worked_hours": worked_seconds / 3600,
+        "worked_hours": seconds / 3600,
         "extra_hours": extra_seconds / 3600,
         "penalty_hours": penalty_seconds / 3600,
         "net_hours": (extra_seconds - penalty_seconds) / 3600,
     }
+
+
+def _extract_work_segments(events: List[Event]) -> List[Tuple[datetime, datetime]]:
+    """Return continuous work segments from ordered events."""
+    events.sort(key=lambda e: e.timestamp)
+    segments: List[Tuple[datetime, datetime]] = []
+    state = "off"
+    start: datetime | None = None
+
+    for ev in events:
+        k = ev.kind
+        if k in {"clockin", "in"} and state == "off":
+            state = "working"
+            start = ev.timestamp
+        elif k == "startbreak" and state == "working" and start is not None:
+            segments.append((start, ev.timestamp))
+            state = "break"
+        elif k == "endbreak" and state == "break":
+            state = "working"
+            start = ev.timestamp
+        elif k in {"clockout", "out"} and start is not None:
+            if state == "working":
+                segments.append((start, ev.timestamp))
+            state = "off"
+            start = None
+
+    return segments
 
 
 def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, object]:
@@ -204,13 +208,22 @@ def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, o
     net_per_day: Dict[str, float] = {str(d): 0.0 for d in range(1, days_in_month + 1)}
     present_days = set()
 
-    by_day: Dict[int, List[Event]] = {}
-    for e in events:
-        day = e.timestamp.astimezone(timezone.utc).day
-        by_day.setdefault(day, []).append(e)
+    segments = _extract_work_segments(events)
+    daily_seconds: Dict[int, float] = {d: 0.0 for d in range(1, days_in_month + 1)}
 
-    for day, evts in by_day.items():
-        metrics = _compute_day_metrics(evts)
+    for start, end in segments:
+        cur = start
+        while cur.date() != end.date():
+            midnight = datetime.combine(cur.date(), datetime.min.time(), tzinfo=cur.tzinfo) + timedelta(days=1)
+            seconds = (midnight - cur).total_seconds()
+            if cur.month == month:
+                daily_seconds[cur.day] += seconds
+            cur = midnight
+        if cur.month == month:
+            daily_seconds[cur.day] += (end - cur).total_seconds()
+
+    for day, secs in daily_seconds.items():
+        metrics = _compute_metrics_from_seconds(secs)
         if metrics["worked_hours"] > 0:
             present_days.add(day)
         hours_per_day[str(day)] = round(metrics["worked_hours"], 2)
@@ -245,14 +258,24 @@ def _summarize_range(events: List[Event], start: datetime, end: datetime) -> Dic
     net_per_day: Dict[str, float] = {str(d + 1): 0.0 for d in range(num_days)}
     present_days = set()
 
-    by_day: Dict[int, List[Event]] = {}
-    for e in events:
-        day_index = (e.timestamp.astimezone(timezone.utc).date() - start.date()).days
-        if 0 <= day_index < num_days:
-            by_day.setdefault(day_index + 1, []).append(e)
+    segments = _extract_work_segments(events)
+    daily_seconds: Dict[int, float] = {d + 1: 0.0 for d in range(num_days)}
 
-    for idx, evts in by_day.items():
-        metrics = _compute_day_metrics(evts)
+    for start_seg, end_seg in segments:
+        cur = start_seg
+        while cur.date() != end_seg.date():
+            midnight = datetime.combine(cur.date(), datetime.min.time(), tzinfo=cur.tzinfo) + timedelta(days=1)
+            seconds = (midnight - cur).total_seconds()
+            day_index = (cur.date() - start.date()).days
+            if 0 <= day_index < num_days:
+                daily_seconds[day_index + 1] += seconds
+            cur = midnight
+        day_index = (cur.date() - start.date()).days
+        if 0 <= day_index < num_days:
+            daily_seconds[day_index + 1] += (end_seg - cur).total_seconds()
+
+    for idx, secs in daily_seconds.items():
+        metrics = _compute_metrics_from_seconds(secs)
         if metrics["worked_hours"] > 0:
             present_days.add(idx)
         hours_per_day[str(idx)] = round(metrics["worked_hours"], 2)
