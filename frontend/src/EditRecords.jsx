@@ -20,7 +20,8 @@ export default function EditRecords() {
   const [entries, setEntries] = useState({})
   const [summary, setSummary] = useState(null)
   const [showMissing, setShowMissing] = useState(false)
-  const [editing, setEditing] = useState(null) // {date, kind, value}
+  const [editing, setEditing] = useState(null) // {date, kind, value, id}
+  const [newEvent, setNewEvent] = useState({ date: '', kind: kinds[0][0], time: '' })
 
   const monthStr = month.toISOString().slice(0, 7)
 
@@ -71,7 +72,7 @@ export default function EditRecords() {
           hour12: false,
         })
       : ''
-    setEditing({ date, kind, value: val })
+    setEditing({ date, kind, value: val, id: row[kind]?.id })
   }
 
   const saveEdit = async () => {
@@ -79,13 +80,13 @@ export default function EditRecords() {
       setEditing(null)
       return
     }
-    const { date, kind, value } = editing
+    const { date, kind, value, id } = editing
     const ts = new Date(`${date}T${value}`).toISOString()
     const row = entries[date] || {}
     try {
-      if (row[kind]) {
-        await axios.patch(`/api/events/${row[kind].id}`, { timestamp: ts })
-        row[kind].timestamp = ts
+      if (id) {
+        await axios.patch(`/api/events/${id}`, { timestamp: ts })
+        if (row[kind]) row[kind].timestamp = ts
       } else {
         const res = await axios.post('/api/events', {
           employee_id: employee,
@@ -96,6 +97,25 @@ export default function EditRecords() {
       }
       setEntries((prev) => ({ ...prev, [date]: { ...row } }))
       toast('Saved ✓')
+      fetchData()
+    } catch {
+      toast('Error', 'error')
+    }
+    setEditing(null)
+  }
+
+  const deleteEntry = async () => {
+    if (!editing || !editing.id) {
+      setEditing(null)
+      return
+    }
+    const { date, kind, id } = editing
+    const row = entries[date] || {}
+    try {
+      await axios.delete(`/api/events/${id}`)
+      delete row[kind]
+      setEntries((prev) => ({ ...prev, [date]: { ...row } }))
+      toast('Deleted ✓')
       fetchData()
     } catch {
       toast('Error', 'error')
@@ -125,6 +145,23 @@ export default function EditRecords() {
 
   const changeMonth = (delta) => {
     setMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
+  }
+
+  const addEvent = async () => {
+    if (!employee || !newEvent.date || !newEvent.time) return
+    const ts = new Date(`${newEvent.date}T${newEvent.time}`).toISOString()
+    try {
+      await axios.post('/api/events', {
+        employee_id: employee,
+        kind: newEvent.kind,
+        timestamp: ts,
+      })
+      toast('Added ✓')
+      setNewEvent({ date: '', kind: kinds[0][0], time: '' })
+      fetchData()
+    } catch {
+      toast('Error', 'error')
+    }
   }
 
   return (
@@ -212,6 +249,11 @@ export default function EditRecords() {
                         <button className="ml-1 text-sapphire" onClick={saveEdit}>
                           ✓
                         </button>
+                        {editing.id && (
+                          <button className="ml-1 text-red-600" onClick={deleteEntry}>
+                            ✗
+                          </button>
+                        )}
                       </div>
                     ) : (
                       row[k]
@@ -229,6 +271,34 @@ export default function EditRecords() {
         </table>
         <div className="font-semibold text-center">
           Worked Days {workedDays} • Worked Hours {formatHoursHM(workedHours)} • Extra Hours {formatHoursHM(extraHours)}
+        </div>
+        <div className="flex flex-wrap items-end gap-2 justify-center pt-2">
+          <input
+            type="date"
+            className="border rounded px-1"
+            value={newEvent.date}
+            onChange={(e) => setNewEvent((prev) => ({ ...prev, date: e.target.value }))}
+          />
+          <select
+            className="border rounded px-1"
+            value={newEvent.kind}
+            onChange={(e) => setNewEvent((prev) => ({ ...prev, kind: e.target.value }))}
+          >
+            {kinds.map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="time"
+            className="border rounded px-1"
+            value={newEvent.time}
+            onChange={(e) => setNewEvent((prev) => ({ ...prev, time: e.target.value }))}
+          />
+          <button onClick={addEvent} className="px-2 py-1 border rounded bg-emerald-500 text-white">
+            Add Action
+          </button>
         </div>
       </div>
     </div>
