@@ -18,3 +18,17 @@ export function formatHoursHM(hours) {
   const pad = (n) => n.toString().padStart(2, '0')
   return `${pad(h)}:${pad(m)}`
 }
+
+export function formatHoursHMLabel(hours) {
+  const [h, m] = formatHoursHM(hours).split(':')
+  return `${Number(h)} h ${m} m`
+}
+
+export function formatDaysHM(days) {
+  const wholeDays = Math.floor(days)
+  const remainingHours = (days - wholeDays) * 8
+  const h = Math.floor(remainingHours)
+  const m = Math.round((remainingHours - h) * 60)
+  const pad = (n) => n.toString().padStart(2, '0')
+  return `${wholeDays} day${wholeDays === 1 ? '' : 's'} ${h} h ${pad(m)} m`
+}
