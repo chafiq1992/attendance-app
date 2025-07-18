@@ -116,19 +116,19 @@ async def test_summary_extra_and_penalty(client):
 
     # Day 1
     assert data["hours_per_day"]["1"] == 8.58
-    assert data["extra_per_day"]["1"] == 0.25
+    assert data["extra_per_day"]["1"] == 0.33
     assert data["penalty_per_day"]["1"] == 0.0
-    assert data["net_per_day"]["1"] == 0.25
+    assert data["net_per_day"]["1"] == 0.33
 
     # Day 2
     assert data["hours_per_day"]["2"] == 7.5
-    assert data["extra_per_day"]["2"] == 3.5
+    assert data["extra_per_day"]["2"] == 3.33
     assert data["penalty_per_day"]["2"] == 0.0
-    assert data["net_per_day"]["2"] == 3.5
+    assert data["net_per_day"]["2"] == 3.33
 
-    assert data["total_extra"] == 3.75
+    assert data["total_extra"] == 3.66
     assert data["total_penalty"] == 0.0
-    assert data["net_time"] == 3.75
+    assert data["net_time"] == 3.66
 
 
 @pytest.mark.asyncio
@@ -150,3 +150,39 @@ async def test_summary_cross_midnight(client):
     assert data["hours_per_day"]["1"] == 5.0
     assert data["hours_per_day"]["2"] == 3.0
     assert data["total_hours"] == 8.0
+
+
+@pytest.mark.asyncio
+async def test_admin_settings_affect_overtime(client):
+    resp = await client.post(
+        "/admin/settings", json={"key": "WORK_DAY_HOURS", "value": "10"}
+    )
+    assert resp.status_code == 200
+    resp = await client.post(
+        "/admin/settings", json={"key": "GRACE_PERIOD_MIN", "value": "30"}
+    )
+    assert resp.status_code == 200
+
+    start = datetime(2024, 5, 1, 9, tzinfo=timezone.utc)
+    end = datetime(2024, 5, 1, 20, 5, tzinfo=timezone.utc)
+    await client.post(
+        "/events",
+        params={"employee_id": "eve", "kind": "clockin", "timestamp": start.isoformat()},
+    )
+    await client.post(
+        "/events",
+        params={"employee_id": "eve", "kind": "clockout", "timestamp": end.isoformat()},
+    )
+
+    resp = await client.get("/summary", params={"employee_id": "eve", "month": "2024-05"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["extra_per_day"]["1"] == 0.5
+    assert data["total_extra"] == 0.5
+
+    await client.post(
+        "/admin/settings", json={"key": "WORK_DAY_HOURS", "value": "8"}
+    )
+    await client.post(
+        "/admin/settings", json={"key": "GRACE_PERIOD_MIN", "value": "20"}
+    )
