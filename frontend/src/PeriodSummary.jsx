@@ -198,18 +198,29 @@ function calcPeriods(events, monthStr, extras = []) {
     { title: '1 – 15', workedDays: 0, hours: 0, extraHours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0, advanceEntries: [], orderEntries: [] },
     { title: `16 – ${daysInMonth}`, workedDays: 0, hours: 0, extraHours: 0, payout: 0, advance: 0, balance: 0, orders: 0, ordersTotal: 0, advanceEntries: [], orderEntries: [] },
   ]
-  const mapping = { clockin: 'in', in: 'in', clockout: 'out', out: 'out' }
+  const mapping = {
+    clockin: 'in',
+    in: 'in',
+    clockout: 'out',
+    out: 'out',
+    startbreak: 'breakStart',
+    endbreak: 'breakEnd',
+  }
   const byDay = {}
   events.forEach((e) => {
     const day = new Date(e.timestamp).getUTCDate()
     byDay[day] = byDay[day] || {}
     const key = mapping[e.kind]
-    if (key) byDay[day][key] = new Date(e.timestamp)
+    if (key && !byDay[day][key]) byDay[day][key] = new Date(e.timestamp)
   })
   Object.entries(byDay).forEach(([d, info]) => {
     const idx = d <= 15 ? 0 : 1
     if (info.in && info.out) {
-      const hrs = (info.out - info.in) / 3600000
+      let hrs = (info.out - info.in) / 3600000
+      if (info.breakStart && info.breakEnd) {
+        hrs -= (info.breakEnd - info.breakStart) / 3600000
+      }
+      if (hrs < 0) hrs = 0
       periods[idx].hours += hrs
       periods[idx].workedDays += hrs / 8
       if (hrs > 8) periods[idx].extraHours += hrs - 8
