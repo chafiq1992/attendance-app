@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import { formatHoursHMLabel, formatDaysHM } from './utils'
 
 export default function PeriodSummary() {
   const [employee, setEmployee] = useState('')
@@ -27,7 +28,11 @@ export default function PeriodSummary() {
       mths.push({ label, monthStr, periods: [] })
     }
     setMonths(mths)
-    setActivePeriod(mths.reduce((acc, _, i) => ({ ...acc, [i]: 0 }), {}))
+    const currentMonth = now.toISOString().slice(0, 7)
+    const currentIdx = now.getUTCDate() <= 15 ? 0 : 1
+    setActivePeriod(
+      mths.reduce((acc, m, i) => ({ ...acc, [i]: m.monthStr === currentMonth ? currentIdx : 0 }), {})
+    )
     mths.forEach(async (m, idx) => {
       try {
         const [evRes, extraRes] = await Promise.all([
@@ -122,24 +127,41 @@ export default function PeriodSummary() {
                 if (!p) return null
                 return (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-                      <div className="whitespace-nowrap">Worked Days</div>
-                      <div className="text-right font-semibold whitespace-nowrap">{p.workedDays.toFixed(2)}</div>
-                      <div className="whitespace-nowrap">Extra Hours</div>
-                      <div className="text-right font-semibold whitespace-nowrap">{p.extraHours}</div>
-                      <div className="whitespace-nowrap">Payout (DH)</div>
-                      <div className="text-right font-semibold whitespace-nowrap">{p.payout}</div>
-                      <div className="whitespace-nowrap">Advances (DH)</div>
-                      <div className="text-right font-semibold whitespace-nowrap">{p.advance}</div>
-                      <div className="whitespace-nowrap">Balance</div>
-                      <div className="text-right font-semibold whitespace-nowrap">{p.balance}</div>
-                      <div className="whitespace-nowrap">Orders Count</div>
-                      <div className="text-right font-semibold whitespace-nowrap">{p.orders}</div>
-                      <div className="whitespace-nowrap">Orders Total</div>
-                      <div className="text-right font-semibold whitespace-nowrap">{p.ordersTotal}</div>
+                    <div className="text-center text-sm font-semibold bg-white/20 rounded px-2 py-1">
+                      {formatDaysHM(p.workedDays)} • <span className="text-blue-400">{formatHoursHMLabel(p.extraHours)}</span> • {p.advance} • <span className={p.balance >= 0 ? 'text-green-500' : 'text-red-500'}>{p.balance}</span>
+                    </div>
+                    <div className="divide-y divide-white/10 text-sm">
+                      <div className="flex justify-between py-1">
+                        <span className="whitespace-nowrap">Worked Days</span>
+                        <span className="font-bold whitespace-nowrap">{formatDaysHM(p.workedDays)}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="whitespace-nowrap">Extra Hours</span>
+                        <span className="font-bold whitespace-nowrap text-blue-400">{formatHoursHMLabel(p.extraHours)}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="whitespace-nowrap">Payout (DH)</span>
+                        <span className="font-bold whitespace-nowrap">{p.payout}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="whitespace-nowrap">Advances (DH)</span>
+                        <span className="font-bold whitespace-nowrap">{p.advance}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="whitespace-nowrap">Balance</span>
+                        <span className={`font-bold whitespace-nowrap ${p.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>{p.balance}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="whitespace-nowrap">Orders Count</span>
+                        <span className="font-bold whitespace-nowrap">{p.orders}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="whitespace-nowrap">Orders Total</span>
+                        <span className="font-bold whitespace-nowrap">{p.ordersTotal}</span>
+                      </div>
                     </div>
                     <details className="card p-2">
-                      <summary className="cursor-pointer font-semibold">Advances History</summary>
+                      <summary className="cursor-pointer font-semibold">Advances <span className="bg-white/20 rounded px-1 text-xs ml-1">{p.advanceEntries.length}</span></summary>
                       <div className="mt-2 space-y-2 text-sm">
                         {p.advanceEntries.map((a, i) => (
                           <div key={i} className="flex justify-between items-center bg-white/10 rounded px-2 py-1">
@@ -151,7 +173,7 @@ export default function PeriodSummary() {
                       </div>
                     </details>
                     <details className="card p-2">
-                      <summary className="cursor-pointer font-semibold">Orders History</summary>
+                      <summary className="cursor-pointer font-semibold">Orders <span className="bg-white/20 rounded px-1 text-xs ml-1">{p.orderEntries?.length || 0}</span></summary>
                       <div className="mt-2 space-y-2 text-sm">
                         {p.orderEntries?.map((o, i) => (
                           <div key={i} className="flex justify-between items-center bg-white/10 rounded px-2 py-1">
@@ -163,18 +185,18 @@ export default function PeriodSummary() {
                       </div>
                     </details>
                     <div className="grid md:grid-cols-2 gap-4">
-                      <div className="card space-y-2">
+                      <div className="card space-y-2 relative pb-14">
                         <div className="font-semibold mb-1">Add Advance 💸</div>
                         <input type="number" className="w-full rounded bg-white/10 p-1" placeholder="Amount" value={advance} onChange={(e) => setAdvance(e.target.value)} />
                         <input type="date" className="w-full rounded bg-white/10 p-1" value={advanceDate} onChange={(e) => setAdvanceDate(e.target.value)} />
-                        <button onClick={saveAdvance} className="btn btn-sapphire w-full">Apply</button>
+                        <button onClick={saveAdvance} className="btn btn-sapphire w-full shadow-md absolute bottom-2 left-2 right-2">Apply</button>
                       </div>
-                      <div className="card space-y-2">
+                      <div className="card space-y-2 relative pb-14">
                         <div className="font-semibold mb-1">Add Order 📑</div>
                         <input type="text" className="w-full rounded bg-white/10 p-1" placeholder="Order ID" value={orderId} onChange={(e) => setOrderId(e.target.value)} />
                         <input type="number" className="w-full rounded bg-white/10 p-1" placeholder="Total" value={orderTotal} onChange={(e) => setOrderTotal(e.target.value)} />
                         <input type="date" className="w-full rounded bg-white/10 p-1" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
-                        <button onClick={saveOrder} className="btn btn-sapphire w-full">Apply</button>
+                        <button onClick={saveOrder} className="btn btn-sapphire w-full shadow-md absolute bottom-2 left-2 right-2">Apply</button>
                       </div>
                     </div>
                     <div className="bg-white/20 text-center font-semibold py-2 rounded-xl">
