@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { formatHoursHMLabel, formatDaysHM } from './utils'
+import useSettings from './useSettings'
 
 export default function PeriodSummary() {
+  const settings = useSettings()
   const [employee, setEmployee] = useState('')
   const [months, setMonths] = useState([])
   const [open, setOpen] = useState(0)
@@ -39,7 +41,7 @@ export default function PeriodSummary() {
           axios.get('/api/events', { params: { employee_id: employee, month: m.monthStr } }),
           axios.get('/employee-data', { params: { employee, month: m.monthStr } })
         ])
-        const periods = calcPeriods(evRes.data, m.monthStr, extraRes.data)
+        const periods = calcPeriods(evRes.data, m.monthStr, extraRes.data, settings.WORK_DAY_HOURS)
         setMonths((prev) => prev.map((x, i) => (i === idx ? { ...x, periods } : x)))
       } catch {
         /* ignore */
@@ -213,7 +215,7 @@ export default function PeriodSummary() {
   )
 }
 
-function calcPeriods(events, monthStr, extras = []) {
+function calcPeriods(events, monthStr, extras = [], workDayHours = 8) {
   const [year, month] = monthStr.split('-').map(Number)
   const daysInMonth = new Date(year, month, 0).getDate()
   const periods = [
@@ -244,8 +246,8 @@ function calcPeriods(events, monthStr, extras = []) {
       }
       if (hrs < 0) hrs = 0
       periods[idx].hours += hrs
-      periods[idx].workedDays += hrs / 8
-      if (hrs > 8) periods[idx].extraHours += hrs - 8
+      periods[idx].workedDays += hrs / workDayHours
+      if (hrs > workDayHours) periods[idx].extraHours += hrs - workDayHours
     }
   })
 
