@@ -5,6 +5,7 @@ import { useToast } from './components/Toast'
 import TimelineEntry from './components/TimelineEntry'
 import axios from 'axios'
 import useSettings from './useSettings'
+import { stripPreClockin } from './utils'
 
 export default function AttendancePad() {
   const settings = useSettings()
@@ -29,7 +30,8 @@ export default function AttendancePad() {
       .get('/api/events', { params: { employee_id: employee, month } })
       .then((res) => {
         const today = new Date().toISOString().slice(0, 10)
-        setEvents(res.data.filter((e) => e.timestamp.startsWith(today)))
+        const filtered = res.data.filter((e) => e.timestamp.startsWith(today))
+        setEvents(stripPreClockin(filtered))
       })
       .catch(() => {})
   }, [employee])
@@ -56,7 +58,7 @@ export default function AttendancePad() {
   }, [])
 
   const isExtraOpen = () => {
-    const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    const sorted = stripPreClockin([...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
     let open = false
     sorted.forEach((e) => {
       if (e.kind === 'startextra') open = true
@@ -85,7 +87,7 @@ export default function AttendancePad() {
         params: { employee_id: employee, kind: action, timestamp: ts }
       })
       .then((res) => {
-        setEvents([...events, { id: res.data.id, kind: action, timestamp: ts }])
+        setEvents(stripPreClockin([...events, { id: res.data.id, kind: action, timestamp: ts }]))
         toast('Saved!')
         setBounce(action)
         setTimeout(() => setBounce(''), 250)
@@ -104,7 +106,7 @@ export default function AttendancePad() {
     { kind: 'endextra', icon: '🛑', label: 'End Extra Hours', color: 'sapphire' },
   ]
 
-  const timeline = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+  const timeline = stripPreClockin([...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
 
   let status = 'Clocked Out'
   let statusColor = 'bg-gray-500'

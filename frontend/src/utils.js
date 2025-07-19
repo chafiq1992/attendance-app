@@ -32,3 +32,10 @@ export function formatDaysHM(days) {
   const pad = (n) => n.toString().padStart(2, '0')
   return `${wholeDays} day${wholeDays === 1 ? '' : 's'} ${h} h ${pad(m)} m`
 }
+
+export function stripPreClockin(events) {
+  const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+  const idx = sorted.findIndex(e => e.kind === 'clockin' || e.kind === 'in')
+  if (idx === -1) return []
+  return sorted.slice(idx)
+}

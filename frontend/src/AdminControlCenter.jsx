@@ -15,7 +15,7 @@ import EditRecords from './EditRecords'
 import PayoutSummary from './PayoutSummary'
 import SettingsLogs from './SettingsLogs'
 import AdminHeader from './components/AdminHeader'
-import { formatMs } from './utils'
+import { formatMs, stripPreClockin } from './utils'
 import useSettings from './useSettings'
 
 Chart.register(BarElement, CategoryScale, LinearScale, ArcElement, Tooltip, Legend)
@@ -113,7 +113,11 @@ function OverviewTab() {
           byEmp[e.employee_id] = byEmp[e.employee_id] || []
           byEmp[e.employee_id].push(e)
         })
-        setData(Object.entries(byEmp).map(([id, ev]) => ({ id, events: ev })))
+        const arr = Object.entries(byEmp).map(([id, ev]) => ({
+          id,
+          events: stripPreClockin(ev)
+        }))
+        setData(arr)
       } catch {
         /* ignore */
       }
@@ -277,7 +281,7 @@ function DirectoryTab() {
           })
           let extraMs = 0
           Object.values(byDay).forEach(dayEv => {
-            extraMs += computeMetrics(dayEv, settings.WORK_DAY_HOURS, settings.GRACE_PERIOD_MIN).extraMs
+            extraMs += computeMetrics(stripPreClockin(dayEv), settings.WORK_DAY_HOURS, settings.GRACE_PERIOD_MIN).extraMs
           })
           return {
             id,
@@ -315,7 +319,7 @@ function DirectoryTab() {
         <tbody>
           {employees.filter(e => e.id.toLowerCase().includes(query.toLowerCase())).map(emp => {
             const today = new Date().toISOString().slice(0,10)
-            const todays = emp.events?.filter(e => e.timestamp.startsWith(today)) || []
+            const todays = stripPreClockin(emp.events?.filter(e => e.timestamp.startsWith(today)) || [])
             const status = todays.length ? computeMetrics(todays, settings.WORK_DAY_HOURS, settings.GRACE_PERIOD_MIN).status : 'Clocked Out'
             return (
               <>
