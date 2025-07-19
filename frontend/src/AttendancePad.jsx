@@ -4,8 +4,10 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { useToast } from './components/Toast'
 import TimelineEntry from './components/TimelineEntry'
 import axios from 'axios'
+import useSettings from './useSettings'
 
 export default function AttendancePad() {
+  const settings = useSettings()
   const [employee, setEmployee] = useState('')
   const [time, setTime] = useState(new Date())
   const [events, setEvents] = useState([])
@@ -147,7 +149,7 @@ export default function AttendancePad() {
     let workMs = 0
     if (inTime && outTime) workMs = outTime - inTime - breakMs
     const hoursWorked = workMs > 0 ? workMs / 3600000 : 0
-    const penaltyMs = workMs > 0 ? Math.max(0, 8 * 3600000 - workMs) : 0
+    const penaltyMs = workMs > 0 ? Math.max(0, settings.WORK_DAY_HOURS * 3600000 - workMs) : 0
     return {
       hoursWorked,
       breakMs,

@@ -16,6 +16,7 @@ import PayoutSummary from './PayoutSummary'
 import SettingsLogs from './SettingsLogs'
 import AdminHeader from './components/AdminHeader'
 import { formatMs } from './utils'
+import useSettings from './useSettings'
 
 Chart.register(BarElement, CategoryScale, LinearScale, ArcElement, Tooltip, Legend)
 
@@ -28,7 +29,7 @@ const actions = [
   { kind: 'endextra', icon: '🛑', label: 'End Extra Hours' },
 ]
 
-function computeMetrics(events) {
+function computeMetrics(events, workHours = 8, graceMin = 15) {
   const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   let status = 'Offline'
   let inTime = null
@@ -78,21 +79,25 @@ function computeMetrics(events) {
 
   const online = status !== 'Clocked Out'
 
-  if (workedMs >= 8 * 3600000) {
-    if (workedMs > 8 * 3600000 + 15 * 60 * 1000) {
-      extraMs = workedMs - (8 * 3600000 + 15 * 60 * 1000)
+  const workMs = workHours * 3600000
+  const graceMs = graceMin * 60 * 1000
+
+  if (workedMs >= workMs) {
+    if (workedMs > workMs + graceMs) {
+      extraMs = workedMs - (workMs + graceMs)
     }
   } else if (workedMs >= 60 * 1000) {
-    if (workedMs > 4 * 3600000 + 15 * 60 * 1000) {
-      extraMs = workedMs - 4 * 3600000
+    if (workedMs > workMs / 2 + graceMs) {
+      extraMs = workedMs - workMs / 2
     }
   }
-  extraMs = Math.round(extraMs / (15 * 60 * 1000)) * (15 * 60 * 1000)
+  extraMs = Math.round(extraMs / graceMs) * graceMs
 
   return { status, workedMs, extraMs, events: sorted, online }
 }
 
 function OverviewTab() {
+  const settings = useSettings()
   const [data, setData] = useState([])
   const [selected, setSelected] = useState(null)
 
@@ -127,7 +132,7 @@ function OverviewTab() {
     const barTimes = []
     data.forEach((emp) => {
       total += 1
-      const m = computeMetrics(emp.events)
+      const m = computeMetrics(emp.events, settings.WORK_DAY_HOURS, settings.GRACE_PERIOD_MIN)
       if (m.online) working += 1
       hoursMs += m.workedMs
       const firstIn = emp.events.find(
@@ -200,7 +205,7 @@ function OverviewTab() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.map(emp => {
-          const m = computeMetrics(emp.events)
+          const m = computeMetrics(emp.events, settings.WORK_DAY_HOURS, settings.GRACE_PERIOD_MIN)
           return (
             <div key={emp.id} className="card flex items-center space-x-4">
               <img
@@ -230,7 +235,7 @@ function OverviewTab() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center" onClick={() => setSelected(null)}>
           <div className="bg-white dark:bg-slate-800 p-4 rounded space-y-2 max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
             <h3 className="font-semibold mb-2">{selected.id} - Today</h3>
-            {computeMetrics(selected.events).events.map((e, idx) => {
+            {computeMetrics(selected.events, settings.WORK_DAY_HOURS, settings.GRACE_PERIOD_MIN).events.map((e, idx) => {
               const a = actions.find(x => x.kind === e.kind)
               const t = new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               return <TimelineEntry key={idx} index={idx} icon={a?.icon} label={a?.label} time={t} />
@@ -248,6 +253,7 @@ function OverviewTab() {
 import EmployeeInlineDashboard from './components/EmployeeInlineDashboard'
 
 function DirectoryTab() {
+  const settings = useSettings()
   const [employees, setEmployees] = useState([])
   const [query, setQuery] = useState('')
   const [expanded, setExpanded] = useState({})
@@ -271,7 +277,7 @@ function DirectoryTab() {
           })
           let extraMs = 0
           Object.values(byDay).forEach(dayEv => {
-            extraMs += computeMetrics(dayEv).extraMs
+            extraMs += computeMetrics(dayEv, settings.WORK_DAY_HOURS, settings.GRACE_PERIOD_MIN).extraMs
           })
           return {
             id,
@@ -310,7 +316,7 @@ function DirectoryTab() {
           {employees.filter(e => e.id.toLowerCase().includes(query.toLowerCase())).map(emp => {
             const today = new Date().toISOString().slice(0,10)
             const todays = emp.events?.filter(e => e.timestamp.startsWith(today)) || []
-            const status = todays.length ? computeMetrics(todays).status : 'Clocked Out'
+            const status = todays.length ? computeMetrics(todays, settings.WORK_DAY_HOURS, settings.GRACE_PERIOD_MIN).status : 'Clocked Out'
             return (
               <>
               <tr key={emp.id} className="text-center">

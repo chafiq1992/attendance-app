@@ -378,7 +378,11 @@ class LogPayload(BaseModel):
 async def get_settings(session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Setting))
     rows = result.scalars().all()
-    return {row.key: row.value for row in rows}
+    data = {row.key: row.value for row in rows}
+    data.setdefault("WORK_DAY_HOURS", str(WORK_DAY_HOURS))
+    data.setdefault("GRACE_PERIOD_MIN", str(GRACE_PERIOD_MIN))
+    data.setdefault("UNDER_TIME_PENALTY_MIN", str(UNDER_TIME_PENALTY_MIN))
+    return data
 
 
 @app.post("/admin/settings", response_model=dict)

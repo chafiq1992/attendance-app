@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { formatHoursHM } from './utils'
+import useSettings from './useSettings'
 
 export default function PayoutSummary() {
+  const settings = useSettings()
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [search, setSearch] = useState('')
   const [employees, setEmployees] = useState([])
@@ -40,7 +42,7 @@ export default function PayoutSummary() {
               hours = summaryRes.total_hours || 0
               extra = summaryRes.total_extra || 0
               days = Object.values(summaryRes.hours_per_day || {}).reduce(
-                (s, h) => s + h / 8,
+                (s, h) => s + h / settings.WORK_DAY_HOURS,
                 0
               )
             }
