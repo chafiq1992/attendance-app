@@ -78,6 +78,7 @@ async def test_summary(client):
     assert data["total_extra"] == 0.0
     assert data["total_penalty"] == 0.0
     assert data["net_time"] == 0.0
+    assert data["incomplete_days"] == 0
 
 
 @pytest.mark.asyncio
@@ -129,6 +130,7 @@ async def test_summary_extra_and_penalty(client):
     assert data["total_extra"] == 3.66
     assert data["total_penalty"] == 0.0
     assert data["net_time"] == 3.66
+    assert data["incomplete_days"] == 0
 
 
 @pytest.mark.asyncio
@@ -150,6 +152,7 @@ async def test_summary_cross_midnight(client):
     assert data["hours_per_day"]["1"] == 5.0
     assert data["hours_per_day"]["2"] == 3.0
     assert data["total_hours"] == 8.0
+    assert data["incomplete_days"] == 2
 
 
 @pytest.mark.asyncio
@@ -179,6 +182,7 @@ async def test_admin_settings_affect_overtime(client):
     data = resp.json()
     assert data["extra_per_day"]["1"] == 0.5
     assert data["total_extra"] == 0.5
+    assert data["incomplete_days"] == 0
 
     await client.post(
         "/admin/settings", json={"key": "WORK_DAY_HOURS", "value": "8"}
