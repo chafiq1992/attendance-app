@@ -6,6 +6,40 @@ import TimelineEntry from './components/TimelineEntry'
 import axios from 'axios'
 import useSettings from './useSettings'
 
+function getCurrentState(events) {
+  const timeline = [...events].sort((a, b) =>
+    a.timestamp.localeCompare(b.timestamp)
+  )
+  let working = false
+  let onBreak = false
+  let extraOpen = false
+  timeline.forEach((e) => {
+    switch (e.kind) {
+      case 'clockin':
+        working = true
+        break
+      case 'clockout':
+        working = false
+        onBreak = false
+        extraOpen = false
+        break
+      case 'startbreak':
+        onBreak = true
+        break
+      case 'endbreak':
+        onBreak = false
+        break
+      case 'startextra':
+        extraOpen = true
+        break
+      case 'endextra':
+        extraOpen = false
+        break
+    }
+  })
+  return { working, onBreak, extraOpen, timeline }
+}
+
 export default function AttendancePad() {
   const settings = useSettings()
   const [employee, setEmployee] = useState('')
@@ -55,25 +89,17 @@ export default function AttendancePad() {
     return () => clearInterval(id)
   }, [])
 
-  const isExtraOpen = () => {
-    const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
-    let open = false
-    sorted.forEach((e) => {
-      if (e.kind === 'startextra') open = true
-      if (e.kind === 'endextra') open = false
-    })
-    return open
-  }
-
   const send = (action) => {
     if (!employee) return
-    const open = isExtraOpen()
-    const taken = events.some((e) => e.kind === action)
-    if (
-      (action === 'startextra' && open) ||
-      (action === 'endextra' && !open) ||
-      (action !== 'startextra' && action !== 'endextra' && taken)
-    ) {
+    const state = getCurrentState(events)
+    const invalid =
+      (action === 'clockin' && state.working) ||
+      (action === 'clockout' && !state.working) ||
+      (action === 'startbreak' && (!state.working || state.onBreak)) ||
+      (action === 'endbreak' && !state.onBreak) ||
+      (action === 'startextra' && (!state.working || state.extraOpen)) ||
+      (action === 'endextra' && !state.extraOpen)
+    if (invalid) {
       toast('Already done! \u{1F44C}')
       setBounce(action)
       setTimeout(() => setBounce(''), 250)
@@ -104,16 +130,12 @@ export default function AttendancePad() {
     { kind: 'endextra', icon: '🛑', label: 'End Extra Hours', color: 'sapphire' },
   ]
 
-  const timeline = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+  const { working, onBreak, extraOpen, timeline } = getCurrentState(events)
 
   let status = 'Clocked Out'
   let statusColor = 'bg-gray-500'
-  if (timeline.length) {
-    const last = timeline[timeline.length - 1]
-    if (last.kind === 'clockout') {
-      status = 'Clocked Out'
-      statusColor = 'bg-gray-500'
-    } else if (last.kind === 'startbreak') {
+  if (working) {
+    if (onBreak) {
       status = 'On Break'
       statusColor = 'bg-yellow-500'
     } else {
@@ -201,9 +223,13 @@ export default function AttendancePad() {
       </div>
       <div className="grid grid-cols-2 gap-4 w-full">
         {actions.map((a) => {
-          let disabled = events.some((e) => e.kind === a.kind)
-          if (a.kind === 'startextra') disabled = isExtraOpen()
-          if (a.kind === 'endextra') disabled = !isExtraOpen()
+          const disabled =
+            (a.kind === 'clockin' && working) ||
+            (a.kind === 'clockout' && !working) ||
+            (a.kind === 'startbreak' && (!working || onBreak)) ||
+            (a.kind === 'endbreak' && !onBreak) ||
+            (a.kind === 'startextra' && (!working || extraOpen)) ||
+            (a.kind === 'endextra' && !extraOpen)
           return (
             <RippleButton
               key={a.kind}
