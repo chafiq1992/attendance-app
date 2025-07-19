@@ -227,6 +227,18 @@ def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, o
     penalties_per_day: Dict[str, float] = {str(d): 0.0 for d in range(1, days_in_month + 1)}
     net_per_day: Dict[str, float] = {str(d): 0.0 for d in range(1, days_in_month + 1)}
     present_days = set()
+    incomplete_days = 0
+
+    by_day: Dict[int, Dict[str, bool]] = {d: {"in": False, "out": False, "any": False} for d in range(1, days_in_month + 1)}
+    for ev in events:
+        if ev.timestamp.month != month or ev.timestamp.year != year:
+            continue
+        d = ev.timestamp.day
+        if ev.kind in {"clockin", "in"}:
+            by_day[d]["in"] = True
+        if ev.kind in {"clockout", "out"}:
+            by_day[d]["out"] = True
+        by_day[d]["any"] = True
 
     segments = _extract_work_segments(events)
     daily_seconds: Dict[int, float] = {d: 0.0 for d in range(1, days_in_month + 1)}
@@ -251,6 +263,10 @@ def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, o
         penalties_per_day[str(day)] = round(metrics["penalty_hours"], 2)
         net_per_day[str(day)] = round(metrics["net_hours"], 2)
 
+    for info in by_day.values():
+        if info["any"] and not (info["in"] and info["out"]):
+            incomplete_days += 1
+
     attendance_rate = len(present_days) / days_in_month if days_in_month else 0
     total_hours = round(sum(hours_per_day.values()), 2)
     total_extra = round(sum(extras_per_day.values()), 2)
@@ -266,6 +282,7 @@ def _summarize_events(events: List[Event], year: int, month: int) -> Dict[str, o
         "total_extra": total_extra,
         "total_penalty": total_penalty,
         "net_time": net_time,
+        "incomplete_days": incomplete_days,
     }
 
 
@@ -277,6 +294,17 @@ def _summarize_range(events: List[Event], start: datetime, end: datetime) -> Dic
     penalties_per_day: Dict[str, float] = {str(d + 1): 0.0 for d in range(num_days)}
     net_per_day: Dict[str, float] = {str(d + 1): 0.0 for d in range(num_days)}
     present_days = set()
+    incomplete_days = 0
+
+    by_day: Dict[int, Dict[str, bool]] = {d + 1: {"in": False, "out": False, "any": False} for d in range(num_days)}
+    for ev in events:
+        idx = (ev.timestamp.date() - start.date()).days
+        if 0 <= idx < num_days:
+            if ev.kind in {"clockin", "in"}:
+                by_day[idx + 1]["in"] = True
+            if ev.kind in {"clockout", "out"}:
+                by_day[idx + 1]["out"] = True
+            by_day[idx + 1]["any"] = True
 
     segments = _extract_work_segments(events)
     daily_seconds: Dict[int, float] = {d + 1: 0.0 for d in range(num_days)}
@@ -303,6 +331,10 @@ def _summarize_range(events: List[Event], start: datetime, end: datetime) -> Dic
         penalties_per_day[str(idx)] = round(metrics["penalty_hours"], 2)
         net_per_day[str(idx)] = round(metrics["net_hours"], 2)
 
+    for info in by_day.values():
+        if info["any"] and not (info["in"] and info["out"]):
+            incomplete_days += 1
+
     attendance_rate = len(present_days) / num_days if num_days else 0
     total_hours = round(sum(hours_per_day.values()), 2)
     total_extra = round(sum(extras_per_day.values()), 2)
@@ -318,6 +350,7 @@ def _summarize_range(events: List[Event], start: datetime, end: datetime) -> Dic
         "total_extra": total_extra,
         "total_penalty": total_penalty,
         "net_time": net_time,
+        "incomplete_days": incomplete_days,
     }
 
 
