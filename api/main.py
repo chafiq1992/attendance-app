@@ -170,6 +170,7 @@ def _compute_metrics_from_seconds(seconds: float) -> Dict[str, float]:
 
     worked_hours = seconds / 3600
     extra_seconds = 0.0
+    penalty_seconds = 0.0
 
     work_seconds = WORK_DAY_HOURS * 3600
     grace_seconds = GRACE_PERIOD_MIN * 60
@@ -179,8 +180,10 @@ def _compute_metrics_from_seconds(seconds: float) -> Dict[str, float]:
         if seconds >= work_seconds:
             if seconds > work_seconds + grace_seconds:
                 extra_seconds = seconds - (work_seconds + grace_seconds)
-        elif seconds > half_work_seconds + grace_seconds:
-            extra_seconds = seconds - half_work_seconds
+        else:
+            penalty_seconds = UNDER_TIME_PENALTY_MIN * 60
+            if seconds > half_work_seconds + grace_seconds:
+                extra_seconds = seconds - half_work_seconds
 
     block = GRACE_PERIOD_MIN * 60
     extra_seconds = round(extra_seconds / block) * block
@@ -188,8 +191,8 @@ def _compute_metrics_from_seconds(seconds: float) -> Dict[str, float]:
     return {
         "worked_hours": worked_hours,
         "extra_hours": extra_seconds / 3600,
-        "penalty_hours": 0.0,
-        "net_hours": extra_seconds / 3600,
+        "penalty_hours": penalty_seconds / 3600,
+        "net_hours": extra_seconds / 3600 - penalty_seconds / 3600,
     }
 
 

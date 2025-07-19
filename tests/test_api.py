@@ -124,12 +124,12 @@ async def test_summary_extra_and_penalty(client):
     # Day 2
     assert data["hours_per_day"]["2"] == 7.5
     assert data["extra_per_day"]["2"] == 3.33
-    assert data["penalty_per_day"]["2"] == 0.0
-    assert data["net_per_day"]["2"] == 3.33
+    assert data["penalty_per_day"]["2"] == 0.25
+    assert data["net_per_day"]["2"] == 3.08
 
     assert data["total_extra"] == 3.66
-    assert data["total_penalty"] == 0.0
-    assert data["net_time"] == 3.66
+    assert data["total_penalty"] == 0.25
+    assert data["net_time"] == 3.41
     assert data["incomplete_days"] == 0
 
 
